@@ -1,0 +1,163 @@
+// =====================================================
+// CAMPUS SCHEDULER - V1
+// ENI Fianarantsoa
+// =====================================================
+
+Table users {
+  id bigint [pk, increment]
+
+  email varchar(255) [not null, unique]
+  password varchar(255) [not null]
+
+  role varchar(50) [not null]
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table teachers {
+  id bigint [pk, increment]
+
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+
+  email varchar(255) [not null, unique]
+  phone varchar(30)
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table subjects {
+  id bigint [pk, increment]
+
+  name varchar(150) [not null, unique]
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table academic_levels {
+  id bigint [pk, increment]
+
+  code varchar(20) [not null, unique]
+
+  Note: 'L1, L2, L3, M1, M2'
+}
+
+Table programs {
+  id bigint [pk, increment]
+
+  code varchar(50) [not null, unique]
+  name varchar(150)
+
+  Note: 'GB, SR, IG, MDI, ASI, IA-GID, IA-OCC'
+}
+
+Table academic_groups {
+  id bigint [pk, increment]
+
+  group_number varchar(20) [not null]
+
+  display_name varchar(100) [not null]
+
+  level_id bigint [not null]
+  program_id bigint [not null]
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table room_types {
+  id bigint [pk, increment]
+
+  name varchar(100) [not null, unique]
+
+  Note: 'CLASSROOM, OFFICE, STUDIO, ADMINISTRATION'
+}
+
+Table rooms {
+  id bigint [pk, increment]
+
+  name varchar(100) [not null, unique]
+
+  room_type_id bigint [not null]
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table time_slots {
+  id bigint [pk, increment]
+
+  label varchar(50) [not null, unique]
+
+  start_time time [not null]
+  end_time time [not null]
+}
+
+Table schedule_weeks {
+  id bigint [pk, increment]
+
+  start_date date [not null]
+  end_date date [not null]
+
+  status varchar(20) [not null]
+
+  published_at timestamp
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table course_sessions {
+  id bigint [pk, increment]
+
+  day_of_week smallint [not null]
+
+  teacher_id bigint [not null]
+  subject_id bigint [not null]
+
+  room_id bigint [not null]
+
+  time_slot_id bigint [not null]
+
+  schedule_week_id bigint [not null]
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table course_session_groups {
+  course_session_id bigint [not null]
+  academic_group_id bigint [not null]
+
+  indexes {
+    (course_session_id, academic_group_id) [pk]
+  }
+}
+
+
+// =====================================================
+// RELATIONS
+// =====================================================
+
+Ref: academic_groups.level_id > academic_levels.id
+
+Ref: academic_groups.program_id > programs.id
+
+Ref: rooms.room_type_id > room_types.id
+
+Ref: course_sessions.teacher_id > teachers.id
+
+Ref: course_sessions.subject_id > subjects.id
+
+Ref: course_sessions.room_id > rooms.id
+
+Ref: course_sessions.time_slot_id > time_slots.id
+
+Ref: course_sessions.schedule_week_id > schedule_weeks.id
+
+Ref: course_session_groups.course_session_id > course_sessions.id
+
+Ref: course_session_groups.academic_group_id > academic_groups.id
