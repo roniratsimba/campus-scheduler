@@ -1,0 +1,15 @@
+erDiagram
+
+PROGRAM ||--o{ ACADEMIC_GROUP : contains
+
+SCHEDULE_WEEK ||--o{ COURSE_SESSION : contains
+
+SUBJECT ||--o{ COURSE_SESSION : taught_in
+
+TEACHER ||--o{ COURSE_SESSION : teaches
+
+ROOM ||--o{ COURSE_SESSION : hosted_in
+
+COURSE_SESSION ||--o{ COURSE_SESSION_GROUP : targets
+
+ACADEMIC_GROUP ||--o{ COURSE_SESSION_GROUP : belongs_to
