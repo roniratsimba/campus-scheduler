@@ -6,6 +6,7 @@ use App\Repository\CourseSessionRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use App\Enum\DeliveryMode;
 
 #[ORM\Entity(repositoryClass: CourseSessionRepository::class)]
 class CourseSession
@@ -24,7 +25,7 @@ class CourseSession
     private ?Subject $subject = null;
 
     #[ORM\ManyToOne(inversedBy: 'courseSessions')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?Room $room = null;
 
     #[ORM\ManyToOne(inversedBy: 'courseSessions')]
@@ -39,6 +40,12 @@ class CourseSession
 
     #[ORM\Column(length: 20)]
     private ?string $status = null;
+
+    #[ORM\Column(enumType: DeliveryMode::class)]
+    private ?DeliveryMode $deliveryMode = null;
+
+    #[ORM\ManyToOne(inversedBy: 'courseSessions')]
+    private ?ScheduleWeek $scheduleWeek = null;
 
     public function __construct()
     {
@@ -130,6 +137,30 @@ class CourseSession
     public function setStatus(string $status): static
     {
         $this->status = $status;
+
+        return $this;
+    }
+
+    public function getDeliveryMode(): ?DeliveryMode
+    {
+        return $this->deliveryMode;
+    }
+
+    public function setDeliveryMode(DeliveryMode $deliveryMode): static
+    {
+        $this->deliveryMode = $deliveryMode;
+
+        return $this;
+    }
+
+    public function getScheduleWeek(): ?ScheduleWeek
+    {
+        return $this->scheduleWeek;
+    }
+
+    public function setScheduleWeek(?ScheduleWeek $scheduleWeek): static
+    {
+        $this->scheduleWeek = $scheduleWeek;
 
         return $this;
     }
