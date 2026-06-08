@@ -6,6 +6,7 @@ use App\Repository\TimeSlotRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use App\Entity\TimeSlot;
 
 #[Route('/api/timeslots')]
 final class TimeSlotController extends AbstractController
@@ -15,7 +16,15 @@ final class TimeSlotController extends AbstractController
     {
         $timeSlots = $timeSlotRepository->findAll();
 
-        return $this->json($timeSlots);
+        return $this->json(array_map(
+            fn(TimeSlot $timeSlot) => [
+                'id' => $timeSlot->getId(),
+                'dayOfWeek' => $timeSlot->getDayOfWeek(),
+                'startTime' => $timeSlot->getStartTime()?->format('H:i'),
+                'endTime' => $timeSlot->getEndTime()?->format('H:i'),
+            ],
+            $timeSlots
+        ));
     }
 
     #[Route('/{id}', methods: ['GET'])]
@@ -23,13 +32,18 @@ final class TimeSlotController extends AbstractController
     {
         $timeSlot = $timeSlotRepository->find($id);
 
-        if(!$timeSlot) {
+        if (!$timeSlot) {
             return $this->json(
                 ['message' => 'TimeSlot not found'],
-                404  
+                404
             );
         }
 
-        return $this->json($timeSlot);
+        return $this->json([
+            'id' => $timeSlot->getId(),
+            'dayOfWeek' => $timeSlot->getDayOfWeek(),
+            'startTime' => $timeSlot->getStartTime()?->format('H:i'),
+            'endTime' => $timeSlot->getEndTime()?->format('H:i'),
+        ]);
     }
 }

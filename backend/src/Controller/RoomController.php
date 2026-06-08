@@ -6,6 +6,7 @@ use App\Repository\RoomRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use App\Entity\Room;
 
 #[Route('/api/rooms')]
 final class RoomController extends AbstractController
@@ -15,7 +16,15 @@ final class RoomController extends AbstractController
     {
         $rooms = $roomRepository->findAll();
 
-        return $this->json($rooms);
+        return $this->json(array_map(
+            fn(Room $room) => [
+                'id' => $room->getId(),
+                'code' => $room->getCode(),
+                'name' => $room->getName(),
+                'type' => $room->getType(),
+            ],
+            $rooms
+        ));
     }
 
     #[Route('/{id}', methods: ['GET'])]
@@ -30,6 +39,11 @@ final class RoomController extends AbstractController
             );
         }
 
-        return $this->json($room);
+        return $this->json([
+            'id' => $room->getId(),
+            'code' => $room->getCode(),
+            'name' => $room->getName(),
+            'type' => $room->getType(),
+        ]);
     }
 }

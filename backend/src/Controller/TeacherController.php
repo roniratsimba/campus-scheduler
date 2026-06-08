@@ -18,7 +18,16 @@ final class TeacherController extends AbstractController
     {
         $teachers = $teacherRepository->findAll();
 
-        return $this->json($teachers);
+        return $this->json(array_map(
+            fn(Teacher $teacher) => [
+                'id' => $teacher->getId(),
+                'firstName' => $teacher->getFirstName(),
+                'lastName' => $teacher->getLastName(),
+                'email' => $teacher->getEmail(),
+                'active' => $teacher->isActive(),
+            ],
+            $teachers
+        ));
     }
 
     #[Route('/{id}', methods: ['GET'])]
@@ -38,29 +47,7 @@ final class TeacherController extends AbstractController
             'firstName' => $teacher->getFirstName(),
             'lastName' => $teacher->getLastName(),
             'email' => $teacher->getEmail(),
-            'isActive' => $teacher->isActive(),
+            'active' => $teacher->isActive(),
         ]);
-    }
-    #[Route('', methods: ['POST'])]
-    public function create(
-        Request $request,
-        EntityManagerInterface $entityManager
-    ): JsonResponse {
-        $data = json_decode($request->getContent(), true);
-
-        $teacher = new Teacher();
-
-        $teacher->setFirstName($data['firstName']);
-        $teacher->setLastName($data['lastName'] ?? null);
-        $teacher->setEmail($data['email']);
-        $teacher->setIsActive($data['isActive'] ?? true);
-
-        $entityManager->persist($teacher);
-        $entityManager->flush();
-
-        return $this->json([
-            'id' => $teacher->getId(),
-            'message' => 'Teacher created'
-        ], 201);
     }
 }

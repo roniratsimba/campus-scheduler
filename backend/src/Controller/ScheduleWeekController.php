@@ -6,6 +6,7 @@ use App\Repository\ScheduleWeekRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Entity\ScheduleWeek;
 
 #[Route('/api/schedule-weeks')]
 final class ScheduleWeekController extends AbstractController
@@ -15,8 +16,8 @@ final class ScheduleWeekController extends AbstractController
     {
         $weeks = $scheduleWeekRepository->findAll();
 
-        $data = array_map(
-            fn ($week) => [
+        return $this->json(array_map(
+            fn(ScheduleWeek $week) => [
                 'id' => $week->getId(),
                 'startDate' => $week->getStartDate()?->format('Y-m-d'),
                 'endDate' => $week->getEndDate()?->format('Y-m-d'),
@@ -24,21 +25,17 @@ final class ScheduleWeekController extends AbstractController
                 'publishedAt' => $week->getPublishedAt()?->format('Y-m-d H:i:s'),
             ],
             $weeks
-        );
-
-        return $this->json($data);
+        ));
     }
 
     #[Route('/{id}', methods: ['GET'])]
-    public function show(
-        int $id,
-        ScheduleWeekRepository $scheduleWeekRepository
-    ): JsonResponse {
+    public function show(int $id, ScheduleWeekRepository $scheduleWeekRepository): JsonResponse
+    {
         $week = $scheduleWeekRepository->find($id);
 
         if (!$week) {
             return $this->json(
-                ['message' => 'Schedule week not found'],
+                ['message' => 'ScheduleWeek not found'],
                 404
             );
         }

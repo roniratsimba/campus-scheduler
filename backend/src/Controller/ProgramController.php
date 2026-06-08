@@ -6,6 +6,7 @@ use App\Repository\ProgramRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Entity\Program;
 
 
 #[Route('/api/programs')]
@@ -16,7 +17,14 @@ final class ProgramController extends AbstractController
     {
         $programs = $programRepository->findAll();
 
-        return $this->json($programs);
+        return $this->json(array_map(
+            fn(Program $program) => [
+                'id' => $program->getId(),
+                'code' => $program->getCode(),
+                'name' => $program->getName(),
+            ],
+            $programs
+        ));
     }
 
     #[Route('/{id}', methods: ['GET'])]
@@ -24,13 +32,17 @@ final class ProgramController extends AbstractController
     {
         $program = $programRepository->find($id);
 
-        if(!$program) {
+        if (!$program) {
             return $this->json(
                 ['message' => 'Program not found'],
                 404
             );
         }
 
-        return $this->json($program);
+        return $this->json([
+            'id' => $program->getId(),
+            'code' => $program->getCode(),
+            'name' => $program->getName(),
+        ]);
     }
 }

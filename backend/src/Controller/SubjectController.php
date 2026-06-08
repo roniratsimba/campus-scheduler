@@ -16,14 +16,21 @@ final class SubjectController extends AbstractController
     {
         $subjects = $subjectRepository->findAll();
 
-        return $this->json($subjects);
+        return $this->json(array_map(
+            fn(Subject $subject) => [
+                'id' => $subject->getId(),
+                'code' => $subject->getCode(),
+                'name' => $subject->getName(),
+            ],
+            $subjects
+        ));
     }
 
     #[Route('/{id}', methods: ['GET'])]
     public function show(int $id, SubjectRepository $subjectRepository): JsonResponse
     {
         $subject = $subjectRepository->find($id);
-        
+
         if (!$subject) {
             return $this->json(
                 ['message' => 'Subject not found'],
@@ -31,6 +38,10 @@ final class SubjectController extends AbstractController
             );
         }
 
-        return $this->json($subject);
+        return $this->json([
+            'id' => $subject->getId(),
+            'code' => $subject->getCode(),
+            'name' => $subject->getName(),
+        ]);
     }
 }
