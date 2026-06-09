@@ -1,27 +1,60 @@
-import { useEffect, useState } from 'react';
-import api from '../api/axios';
-import type { Teacher } from '../types/Teacher';
+import { useEffect, useState } from "react";
+import { api } from "../service/api"
+
+type Teacher = {
+  id: number;
+  firstName: string;
+  lastName: string | null;
+  email: string;
+  active: boolean;
+};
 
 export default function TeachersPage() {
-    const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        api.get('/teachers')
-            .then((response) => setTeachers(response.data))
-            .catch(console.error);
-    }, []);
+  useEffect(() => {
+    api
+      .get("/teachers")
+      .then((response) => {
+        setTeachers(response.data);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
-    return (
-        <div>
-            <h1>Teachers</h1>
+  if (loading) {
+    return <p>Loading...</p>;
+  }
 
-            <ul>
-                {teachers.map((teacher) => (
-                    <li key={teacher.id}>
-                        {teacher.firstName} {teacher.lastName}
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
+  return (
+    <div>
+      <h1>Teachers</h1>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>First name</th>
+            <th>Last name</th>
+            <th>Email</th>
+            <th>Active</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {teachers.map((teacher) => (
+            <tr key={teacher.id}>
+              <td>{teacher.id}</td>
+              <td>{teacher.firstName}</td>
+              <td>{teacher.lastName}</td>
+              <td>{teacher.email}</td>
+              <td>{teacher.active ? "Yes" : "No"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
