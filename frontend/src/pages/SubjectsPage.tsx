@@ -28,7 +28,7 @@ export default function SubjectsPage() {
 
   return (
     <div>
-      <h1>Subjects</h1>
+      <h1>Matière</h1>
 
       <table>
         <thead>

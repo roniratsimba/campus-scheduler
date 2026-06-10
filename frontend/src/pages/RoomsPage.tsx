@@ -28,7 +28,7 @@ export default function RoomsPage() {
     }
     return (
         <div>
-            <h1>Rooms</h1>
+            <h1>Salles</h1>
 
             <table>
                 <thead>

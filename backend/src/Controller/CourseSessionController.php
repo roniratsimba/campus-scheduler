@@ -9,6 +9,17 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
+use App\Enum\DeliveryMode;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\Request;
+
+use App\Repository\TeacherRepository;
+use App\Repository\SubjectRepository;
+use App\Repository\RoomRepository;
+use App\Repository\TimeSlotRepository;
+use App\Repository\AcademicGroupRepository;
+use App\Repository\ScheduleWeekRepository;
+
 #[Route('/api/course-sessions')]
 final class CourseSessionController extends AbstractController
 {
@@ -45,6 +56,230 @@ final class CourseSessionController extends AbstractController
         );
     }
 
+    #[Route('', methods: ['POST'])]
+    public function create(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        TeacherRepository $teacherRepository,
+        SubjectRepository $subjectRepository,
+        RoomRepository $roomRepository,
+        TimeSlotRepository $timeSlotRepository,
+        AcademicGroupRepository $academicGroupRepository,
+        ScheduleWeekRepository $scheduleWeekRepository
+    ): JsonResponse {
+
+        $data = json_decode(
+            $request->getContent(),
+            true
+        );
+
+        $teacher = $teacherRepository->find(
+            $data['teacherId'] ?? null
+        );
+
+        $subject = $subjectRepository->find(
+            $data['subjectId'] ?? null
+        );
+
+        $timeSlot = $timeSlotRepository->find(
+            $data['timeSlotId'] ?? null
+        );
+
+        $scheduleWeek = $scheduleWeekRepository->find(
+            $data['scheduleWeekId'] ?? null
+        );
+
+        if (
+            !$teacher ||
+            !$subject ||
+            !$timeSlot ||
+            !$scheduleWeek
+        ) {
+            return $this->json([
+                'message' => 'Invalid references',
+                'teacher' => $teacher?->getId(),
+                'subject' => $subject?->getId(),
+                'timeSlot' => $timeSlot?->getId(),
+                'scheduleWeek' => $scheduleWeek?->getId(),
+            ], 400);
+        }
+
+        $session = new CourseSession();
+
+        $session->setTeacher($teacher);
+        $session->setSubject($subject);
+        $session->setTimeSlot($timeSlot);
+        $session->setScheduleWeek($scheduleWeek);
+
+        if (!empty($data['roomId'])) {
+
+            $room = $roomRepository->find(
+                $data['roomId']
+            );
+
+            if (!$room) {
+                return $this->json([
+                    'message' => 'Room not found'
+                ], 400);
+            }
+
+            $session->setRoom($room);
+        }
+
+        foreach (
+            $data['academicGroupIds'] ?? []
+            as $groupId
+        ) {
+
+            $group = $academicGroupRepository->find(
+                $groupId
+            );
+
+            if ($group) {
+                $session->addAcademicGroup($group);
+            }
+        }
+
+        $session->setStatus(
+            $data['status'] ?? 'DRAFT'
+        );
+
+        $session->setDeliveryMode(
+            DeliveryMode::from(
+                $data['deliveryMode']
+            )
+        );
+
+        $entityManager->persist($session);
+        $entityManager->flush();
+
+        return $this->json(
+            $this->serializeSession($session),
+            201
+        );
+    }
+    #[Route('/{id}', methods: ['PUT'])]
+    public function update(
+        int $id,
+        Request $request,
+        CourseSessionRepository $courseSessionRepository,
+        TeacherRepository $teacherRepository,
+        SubjectRepository $subjectRepository,
+        RoomRepository $roomRepository,
+        TimeSlotRepository $timeSlotRepository,
+        AcademicGroupRepository $academicGroupRepository,
+        ScheduleWeekRepository $scheduleWeekRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+
+        $session = $courseSessionRepository->find($id);
+
+        if (!$session) {
+            return $this->json([
+                'message' => 'Course session not found'
+            ], 404);
+        }
+
+        $data = json_decode(
+            $request->getContent(),
+            true
+        );
+
+        $teacher = $teacherRepository->find(
+            $data['teacherId'] ?? null
+        );
+
+        $subject = $subjectRepository->find(
+            $data['subjectId'] ?? null
+        );
+
+        $timeSlot = $timeSlotRepository->find(
+            $data['timeSlotId'] ?? null
+        );
+
+        $scheduleWeek = $scheduleWeekRepository->find(
+            $data['scheduleWeekId'] ?? null
+        );
+
+        if (
+            !$teacher ||
+            !$subject ||
+            !$timeSlot ||
+            !$scheduleWeek
+        ) {
+            return $this->json([
+                'message' => 'Invalid references'
+            ], 400);
+        }
+
+        $session->setTeacher($teacher);
+        $session->setSubject($subject);
+        $session->setTimeSlot($timeSlot);
+        $session->setScheduleWeek($scheduleWeek);
+
+        if (!empty($data['roomId'])) {
+
+            $room = $roomRepository->find(
+                $data['roomId']
+            );
+
+            $session->setRoom($room);
+        }
+
+        $session->getAcademicGroups()->clear();
+
+        foreach (
+            $data['academicGroupIds'] ?? []
+            as $groupId
+        ) {
+
+            $group = $academicGroupRepository->find(
+                $groupId
+            );
+
+            if ($group) {
+                $session->addAcademicGroup($group);
+            }
+        }
+
+        $session->setStatus(
+            $data['status']
+        );
+
+        $session->setDeliveryMode(
+            DeliveryMode::from(
+                $data['deliveryMode']
+            )
+        );
+
+        $entityManager->flush();
+
+        return $this->json(
+            $this->serializeSession($session)
+        );
+    }
+    #[Route('/{id}', methods: ['DELETE'])]
+    public function delete(
+        int $id,
+        CourseSessionRepository $courseSessionRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+
+        $session = $courseSessionRepository->find($id);
+
+        if (!$session) {
+            return $this->json([
+                'message' => 'Course session not found'
+            ], 404);
+        }
+
+        $entityManager->remove($session);
+        $entityManager->flush();
+
+        return $this->json([
+            'message' => 'Course session deleted'
+        ]);
+    }
     private function serializeSession(
         CourseSession $session
     ): array {

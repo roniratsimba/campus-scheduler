@@ -30,16 +30,16 @@ export default function ScheduleWeeksPage() {
 
   return (
     <div>
-      <h1>Schedule Weeks</h1>
+      <h1>Semaines d'emploi du temps</h1>
 
       <table>
         <thead>
           <tr>
             <th>ID</th>
-            <th>Start</th>
-            <th>End</th>
+            <th>Début</th>
+            <th>Fin</th>
             <th>Status</th>
-            <th>Published</th>
+            <th>Publié</th>
           </tr>
         </thead>
 

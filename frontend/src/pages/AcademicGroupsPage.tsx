@@ -29,7 +29,7 @@ export default function AcademicGroupsPage() {
 
   return (
     <div>
-      <h1>Academic Groups</h1>
+      <h1>Groupes académiques</h1>
 
       <table>
         <thead>

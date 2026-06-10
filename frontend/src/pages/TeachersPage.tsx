@@ -30,16 +30,16 @@ export default function TeachersPage() {
 
   return (
     <div>
-      <h1>Teachers</h1>
+      <h1>Enseignants</h1>
 
       <table>
         <thead>
           <tr>
             <th>ID</th>
-            <th>First name</th>
-            <th>Last name</th>
+            <th>Prénom</th>
+            <th>Nom</th>
             <th>Email</th>
-            <th>Active</th>
+            <th>Actif</th>
           </tr>
         </thead>
 

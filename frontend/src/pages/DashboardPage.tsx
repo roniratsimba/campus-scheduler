@@ -1,7 +1,7 @@
 export default function DashboardPage() {
     return (
         <div>
-            <h1>Dashboard</h1>
+            <h1>Tableau de bord</h1>
             <p>Welcome to the Campus Scheduler Dashboard!</p>
         </div>
     );

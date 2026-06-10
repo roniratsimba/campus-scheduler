@@ -11,58 +11,89 @@ type CourseSession = {
   startTime: string;
   endTime: string;
   groups: string[];
-  weekId: number;
-  status: string;
 };
 
-export default function CourseSessionsPage() {
+const DAYS = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+];
+
+const DAY_LABELS: Record<string, string> = {
+  MONDAY: "Lundi",
+  TUESDAY: "Mardi",
+  WEDNESDAY: "Mercredi",
+  THURSDAY: "Jeudi",
+  FRIDAY: "Vendredi",
+  SATURDAY: "Samedi",
+};
+
+const SLOTS = [
+  "08:00",
+  "10:00",
+  "14:00",
+  "16:00",
+];
+
+export default function TimetablePage() {
   const [sessions, setSessions] = useState<CourseSession[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .get("/course-sessions")
-      .then((response) => {
-        setSessions(response.data);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    api.get("/course-sessions").then((response) => {
+      setSessions(response.data);
+    });
   }, []);
 
-  if (loading) {
-    return <p>Loading...</p>;
-  }
+  const findSession = (day: string, slot: string) => {
+    return sessions.find(
+      (session) =>
+        session.dayOfWeek === day &&
+        session.startTime.startsWith(slot)
+    );
+  };
 
   return (
     <div>
-      <h1>Course Sessions</h1>
+      <h1>Emploi du temps</h1>
 
-      <table>
+      <table border={1} cellPadding={10}>
         <thead>
           <tr>
-            <th>Teacher</th>
-            <th>Subject</th>
-            <th>Room</th>
-            <th>Groups</th>
-            <th>Day</th>
-            <th>Time</th>
-            <th>Mode</th>
+            <th>Heure</th>
+
+            {DAYS.map((day) => (
+                <th key={day}>
+                    {DAY_LABELS[day]}
+                </th>
+            ))}
           </tr>
         </thead>
 
         <tbody>
-          {sessions.map((session) => (
-            <tr key={session.id}>
-              <td>{session.teacher}</td>
-              <td>{session.subject}</td>
-              <td>{session.room ?? "-"}</td>
-              <td>{session.groups.join(", ")}</td>
-              <td>{session.dayOfWeek}</td>
-              <td>
-                {session.startTime} - {session.endTime}
-              </td>
-              <td>{session.deliveryMode}</td>
+          {SLOTS.map((slot) => (
+            <tr key={slot}>
+              <td>{slot}</td>
+
+              {DAYS.map((day) => {
+                const session = findSession(day, slot);
+
+                return (
+                  <td key={`${day}-${slot}`}>
+                    {session && (
+                      <>
+                        <strong>{session.subject}</strong>
+                        <br />
+                        {session.teacher}
+                        <br />
+                        {session.room}
+                      </>
+                    )}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
