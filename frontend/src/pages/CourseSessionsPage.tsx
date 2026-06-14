@@ -14,6 +14,11 @@ type CourseSession = {
   groups: string[];
 };
 
+type SelectedCell = {
+  day: string;
+  slot: string;
+} | null;
+
 const DAYS = [
   "MONDAY",
   "TUESDAY",
@@ -32,20 +37,16 @@ const DAY_LABELS: Record<string, string> = {
   SATURDAY: "Samedi",
 };
 
-const SLOTS = [
-  "08:00",
-  "10:00",
-  "14:00",
-  "16:00",
-];
+const SLOTS = ["08:00", "10:00", "14:00", "16:00"];
 
 export default function TimetablePage() {
   const [showForm, setShowForm] = useState(false);
   const [sessions, setSessions] = useState<CourseSession[]>([]);
+  const [selectedCell, setSelectedCell] = useState<SelectedCell>(null);
 
   const loadSessions = () => {
-    api.get("/course-sessions").then((response) => {
-      setSessions(response.data);
+    api.get("/course-sessions").then((res) => {
+      setSessions(res.data);
     });
   };
 
@@ -53,45 +54,29 @@ export default function TimetablePage() {
     loadSessions();
   }, []);
 
-const findSessions = (
-  day: string,
-  slot: string
-) => {
-  return sessions.filter(
-    (session) =>
-      session.dayOfWeek === day &&
-      session.startTime.startsWith(slot)
-  );
-};
+  const findSessions = (day: string, slot: string) => {
+    return sessions.filter(
+      (s) =>
+        s.dayOfWeek === day &&
+        s.startTime.startsWith(slot)
+    );
+  };
+
+  const openCell = (day: string, slot: string) => {
+    setSelectedCell({ day, slot });
+    setShowForm(true);
+  };
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1rem",
-        }}
-      >
-        <h1>Emploi du temps</h1>
-
-        <button
-          onClick={() => setShowForm(true)}
-        >
-          Nouvelle séance
-        </button>
-      </div>
+      <h1>Emploi du temps</h1>
 
       <table border={1} cellPadding={10}>
         <thead>
           <tr>
             <th>Heure</th>
-
             {DAYS.map((day) => (
-                <th key={day}>
-                    {DAY_LABELS[day]}
-                </th>
+              <th key={day}>{DAY_LABELS[day]}</th>
             ))}
           </tr>
         </thead>
@@ -102,11 +87,18 @@ const findSessions = (
               <td>{slot}</td>
 
               {DAYS.map((day) => {
-                const cellSessions =
-                  findSessions(day, slot);
+                const cellSessions = findSessions(day, slot);
 
                 return (
-                  <td key={`${day}-${slot}`}>
+                  <td
+                    key={`${day}-${slot}`}
+                    onClick={() => openCell(day, slot)}
+                    style={{
+                      cursor: "pointer",
+                      verticalAlign: "top",
+                      background: "#fafafa",
+                    }}
+                  >
                     {cellSessions.map((session) => (
                       <div
                         key={session.id}
@@ -115,16 +107,13 @@ const findSessions = (
                           padding: "0.5rem",
                           marginBottom: "0.5rem",
                           borderRadius: "4px",
+                          background: "#fff",
                         }}
                       >
                         <strong>{session.subject}</strong>
-
                         <br />
-
                         {session.teacher}
-
                         <br />
-
                         {session.room}
                       </div>
                     ))}
@@ -135,12 +124,16 @@ const findSessions = (
           ))}
         </tbody>
       </table>
-<CourseSessionModal
-  open={showForm}
-  onClose={() => setShowForm(false)}
-  onCreated={loadSessions}
-/>
+
+      <CourseSessionModal
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        onCreated={() => {
+          loadSessions();
+          setSelectedCell(null);
+        }}
+        selectedCell={selectedCell}
+      />
     </div>
-    
   );
 }
