@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../service/api";
+import CourseSessionModal from "./CourseSessionModal";
 
 type CourseSession = {
   id: number;
@@ -39,25 +40,48 @@ const SLOTS = [
 ];
 
 export default function TimetablePage() {
+  const [showForm, setShowForm] = useState(false);
   const [sessions, setSessions] = useState<CourseSession[]>([]);
 
-  useEffect(() => {
+  const loadSessions = () => {
     api.get("/course-sessions").then((response) => {
       setSessions(response.data);
     });
+  };
+
+  useEffect(() => {
+    loadSessions();
   }, []);
 
-  const findSession = (day: string, slot: string) => {
-    return sessions.find(
-      (session) =>
-        session.dayOfWeek === day &&
-        session.startTime.startsWith(slot)
-    );
-  };
+const findSessions = (
+  day: string,
+  slot: string
+) => {
+  return sessions.filter(
+    (session) =>
+      session.dayOfWeek === day &&
+      session.startTime.startsWith(slot)
+  );
+};
 
   return (
     <div>
-      <h1>Emploi du temps</h1>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "1rem",
+        }}
+      >
+        <h1>Emploi du temps</h1>
+
+        <button
+          onClick={() => setShowForm(true)}
+        >
+          Nouvelle séance
+        </button>
+      </div>
 
       <table border={1} cellPadding={10}>
         <thead>
@@ -78,19 +102,32 @@ export default function TimetablePage() {
               <td>{slot}</td>
 
               {DAYS.map((day) => {
-                const session = findSession(day, slot);
+                const cellSessions =
+                  findSessions(day, slot);
 
                 return (
                   <td key={`${day}-${slot}`}>
-                    {session && (
-                      <>
+                    {cellSessions.map((session) => (
+                      <div
+                        key={session.id}
+                        style={{
+                          border: "1px solid #ddd",
+                          padding: "0.5rem",
+                          marginBottom: "0.5rem",
+                          borderRadius: "4px",
+                        }}
+                      >
                         <strong>{session.subject}</strong>
+
                         <br />
+
                         {session.teacher}
+
                         <br />
+
                         {session.room}
-                      </>
-                    )}
+                      </div>
+                    ))}
                   </td>
                 );
               })}
@@ -98,6 +135,12 @@ export default function TimetablePage() {
           ))}
         </tbody>
       </table>
+<CourseSessionModal
+  open={showForm}
+  onClose={() => setShowForm(false)}
+  onCreated={loadSessions}
+/>
     </div>
+    
   );
 }
