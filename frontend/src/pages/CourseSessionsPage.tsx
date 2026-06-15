@@ -92,23 +92,38 @@ export default function TimetablePage() {
                 return (
                   <td
                     key={`${day}-${slot}`}
-                    onClick={() => openCell(day, slot)}
                     style={{
                       cursor: "pointer",
                       verticalAlign: "top",
                       background: "#fafafa",
                     }}
                   >
+                                            {/* Bouton ajouter pour nouvelle séance */}
+                        <button
+                          onClick={() => openCell(day, slot)}
+                          style={{
+                            width: "100%",
+                            marginBottom: "0.5rem",
+                          }}
+                        >
+                          +
+                        </button>
                     {cellSessions.map((session) => (
+                      
                       <div
                         key={session.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // édition plus tard
+                        }}
                         style={{
                           border: "1px solid #ddd",
-                          padding: "0.5rem",
-                          marginBottom: "0.5rem",
-                          borderRadius: "4px",
-                          background: "#fff",
-                        }}
+                          cursor: "pointer",
+                              padding: "0.5rem",
+                              marginBottom: "0.5rem",
+                              borderRadius: "4px",
+                              background: "#fff",
+                            }}
                       >
                         <strong>{session.subject}</strong>
                         <br />
@@ -117,6 +132,13 @@ export default function TimetablePage() {
                         {session.room}
                       </div>
                     ))}
+                    <td
+                      key={`${day}-${slot}`}
+                      style={{
+                        verticalAlign: "top",
+                        minWidth: "180px",
+                      }}
+                    ></td>
                   </td>
                 );
               })}
