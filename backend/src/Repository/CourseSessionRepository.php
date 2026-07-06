@@ -23,35 +23,47 @@ class CourseSessionRepository extends ServiceEntityRepository
     public function teacherConflict(
         Teacher $teacher,
         TimeSlot $timeSlot,
-        ScheduleWeek $scheduleWeek
+        ScheduleWeek $scheduleWeek,
+        ?int $excludeSessionId = null
     ): bool {
-        return $this->createQueryBuilder('cs')
+        $qb = $this->createQueryBuilder('cs')
             ->select('COUNT(cs.id)')
             ->andWhere('cs.teacher = :teacher')
             ->andWhere('cs.timeSlot = :timeSlot')
             ->andWhere('cs.scheduleWeek = :week')
             ->setParameter('teacher', $teacher)
             ->setParameter('timeSlot', $timeSlot)
-            ->setParameter('week', $scheduleWeek)
-            ->getQuery()
-            ->getSingleScalarResult() > 0;
+            ->setParameter('week', $scheduleWeek);
+
+        if ($excludeSessionId) {
+            $qb->andWhere('cs.id != :id')
+                ->setParameter('id', $excludeSessionId);
+        }
+
+        return $qb->getQuery()->getSingleScalarResult() > 0;
     }
 
     public function roomConflict(
         Room $room,
         TimeSlot $timeSlot,
-        ScheduleWeek $scheduleWeek
+        ScheduleWeek $scheduleWeek,
+        ?int $excludeSessionId = null
     ): bool {
-        return $this->createQueryBuilder('cs')
+        $qb = $this->createQueryBuilder('cs')
             ->select('COUNT(cs.id)')
             ->andWhere('cs.room = :room')
             ->andWhere('cs.timeSlot = :timeSlot')
             ->andWhere('cs.scheduleWeek = :week')
             ->setParameter('room', $room)
             ->setParameter('timeSlot', $timeSlot)
-            ->setParameter('week', $scheduleWeek)
-            ->getQuery()
-            ->getSingleScalarResult() > 0;
+            ->setParameter('week', $scheduleWeek);
+
+        if ($excludeSessionId) {
+            $qb->andWhere('cs.id != :id')
+                ->setParameter('id', $excludeSessionId);
+        }
+
+        return $qb->getQuery()->getSingleScalarResult() > 0;
     }
 
     public function groupConflict(
@@ -76,6 +88,37 @@ class CourseSessionRepository extends ServiceEntityRepository
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult() > 0;
+    }
+
+    public function findByGroup(int $groupId): array
+    {
+        return $this->createQueryBuilder('cs')
+            ->join('cs.academicGroups', 'g')
+            ->andWhere('g.id = :groupId')
+            ->setParameter('groupId', $groupId)
+            ->orderBy('cs.timeSlot', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findByTeacher(int $teacherId): array
+    {
+        return $this->createQueryBuilder('cs')
+            ->andWhere('cs.teacher = :teacherId')
+            ->setParameter('teacherId', $teacherId)
+            ->orderBy('cs.timeSlot', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findByRoom(int $roomId): array
+    {
+        return $this->createQueryBuilder('cs')
+            ->andWhere('cs.room = :roomId')
+            ->setParameter('roomId', $roomId)
+            ->orderBy('cs.timeSlot', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     //    /**

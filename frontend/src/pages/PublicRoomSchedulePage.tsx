@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../service/api";
-import CourseSessionModal from "./CourseSessionModal";
 
 type CourseSession = {
   id: number;
@@ -14,10 +14,12 @@ type CourseSession = {
   groups: string[];
 };
 
-type SelectedCell = {
-  day: string;
-  slot: string;
-} | null;
+type Room = {
+  id: number;
+  name: string;
+  code: string;
+  type: string;
+};
 
 const DAYS = [
   "MONDAY",
@@ -39,20 +41,28 @@ const DAY_LABELS: Record<string, string> = {
 
 const SLOTS = ["08:00", "10:00", "14:00", "16:00"];
 
-export default function TimetablePage() {
-  const [showForm, setShowForm] = useState(false);
+export default function PublicRoomSchedulePage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [room, setRoom] = useState<Room | null>(null);
   const [sessions, setSessions] = useState<CourseSession[]>([]);
-  const [selectedCell, setSelectedCell] = useState<SelectedCell>(null);
-
-  const loadSessions = () => {
-    api.get("/course-sessions").then((res) => {
-      setSessions(res.data);
-    });
-  };
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSessions();
-  }, []);
+    if (!id) return;
+
+    api.get(`/public/schedule/room/${id}`)
+      .then((res) => {
+        setRoom(res.data.room);
+        setSessions(res.data.sessions);
+      })
+      .catch(() => {
+        navigate("/");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [id, navigate]);
 
   const findSessions = (day: string, slot: string) => {
     return sessions.filter(
@@ -62,14 +72,20 @@ export default function TimetablePage() {
     );
   };
 
-  const openCell = (day: string, slot: string) => {
-    setSelectedCell({ day, slot });
-    setShowForm(true);
-  };
+  if (loading) {
+    return <div>Chargement...</div>;
+  }
+
+  if (!room) {
+    return <div>Salle non trouvée</div>;
+  }
 
   return (
     <div>
-      <h1>Emploi du temps</h1>
+      <h1>Emploi du temps - {room.name}</h1>
+      <p>
+        {room.code} - {room.type}
+      </p>
 
       <table border={1} cellPadding={10}>
         <thead>
@@ -93,43 +109,26 @@ export default function TimetablePage() {
                   <td
                     key={`${day}-${slot}`}
                     style={{
-                      cursor: "pointer",
                       verticalAlign: "top",
-                      background: "#fafafa",
+                      minWidth: "180px",
                     }}
                   >
-                                            {/* Bouton ajouter pour nouvelle séance */}
-                        <button
-                          onClick={() => openCell(day, slot)}
-                          style={{
-                            width: "100%",
-                            marginBottom: "0.5rem",
-                          }}
-                        >
-                          +
-                        </button>
                     {cellSessions.map((session) => (
-                      
                       <div
                         key={session.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // édition plus tard
-                        }}
                         style={{
                           border: "1px solid #ddd",
-                          cursor: "pointer",
-                              padding: "0.5rem",
-                              marginBottom: "0.5rem",
-                              borderRadius: "4px",
-                              background: "#fff",
-                            }}
+                          padding: "0.5rem",
+                          marginBottom: "0.5rem",
+                          borderRadius: "4px",
+                          background: "#fff",
+                        }}
                       >
                         <strong>{session.subject}</strong>
                         <br />
                         {session.teacher}
                         <br />
-                        {session.room}
+                        {session.groups.join(", ")}
                       </div>
                     ))}
                   </td>
@@ -139,16 +138,6 @@ export default function TimetablePage() {
           ))}
         </tbody>
       </table>
-
-      <CourseSessionModal
-        open={showForm}
-        onClose={() => setShowForm(false)}
-        onCreated={() => {
-          loadSessions();
-          setSelectedCell(null);
-        }}
-        selectedCell={selectedCell}
-      />
     </div>
   );
 }
