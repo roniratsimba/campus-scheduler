@@ -3,17 +3,14 @@ import Sidebar from "./Sidebar";
 
 export default function Layout() {
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-      }}
-    >
+    <div style={{ display: "flex", minHeight: "100vh" }}>
       <Sidebar />
-
       <main
         style={{
           flex: 1,
+          marginLeft: "280px",
+          background: "var(--bg-alt)",
+          minHeight: "100vh",
           padding: "2rem",
         }}
       >

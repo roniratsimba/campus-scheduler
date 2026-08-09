@@ -11,81 +11,74 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
-
+    setError("");
     try {
-      const res = await api.post("/login", { email, password });
-      
-      // Store token and user info
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-      
+      const response = await api.post("/login", { email, password });
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
       navigate("/dashboard");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Erreur de connexion");
+    } catch (err) {
+      setError("Identifiants incorrects");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "2rem auto", padding: "2rem" }}>
-      <h1>Connexion</h1>
-      
-      {error && (
-        <div style={{ color: "red", marginBottom: "1rem" }}>{error}</div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: "1rem" }}>
-          <label style={{ display: "block", marginBottom: "0.5rem" }}>
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: "100%", padding: "0.5rem" }}
-          />
+    <div className="container">
+      <div className="card" style={{ maxWidth: "450px", margin: "2rem auto" }}>
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <h1>Connexion</h1>
+          <p>Accédez à l'administration Campus Scheduler</p>
         </div>
 
-        <div style={{ marginBottom: "1rem" }}>
-          <label style={{ display: "block", marginBottom: "0.5rem" }}>
-            Mot de passe
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: "100%", padding: "0.5rem" }}
-          />
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", marginBottom: "0.5rem" }}>
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{ width: "100%" }}
+              autoFocus
+            />
+          </div>
+
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", marginBottom: "0.5rem" }}>
+              Mot de passe
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{ width: "100%" }}
+            />
+          </div>
+
+          {error && <div className="error">{error}</div>}
+
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading}
+            style={{ width: "100%", marginTop: "1rem" }}
+          >
+            {loading ? "Connexion..." : "Se connecter"}
+          </button>
+        </form>
 
         <button
-          type="submit"
-          disabled={loading}
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            background: "#007bff",
-            color: "white",
-            border: "none",
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading ? "Connexion..." : "Se connecter"}
-        </button>
-      </form>
-
-      <div style={{ marginTop: "1rem" }}>
-        <button
+          className="btn-secondary"
           onClick={() => navigate("/")}
-          style={{ padding: "0.5rem 1rem" }}
+          style={{ width: "100%", marginTop: "1rem" }}
         >
-          Retour à l'accueil
+          ← Retour accueil
         </button>
       </div>
     </div>

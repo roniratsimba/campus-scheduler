@@ -8,10 +8,28 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Entity\Program;
 
-
+/**
+ * Contrôleur ProgramController - Gestion des programmes d'études
+ * 
+ * Fournit les endpoints CRUD pour les programmes (filières).
+ * Ces endpoints nécessitent une authentification admin.
+ * 
+ * Routes disponibles :
+ * - GET /api/programs : Liste tous les programmes
+ * - GET /api/programs/{id} : Détails d'un programme
+ * 
+ * @author Campus Scheduler Team
+ * @version 1.0
+ */
 #[Route('/api/programs')]
 final class ProgramController extends AbstractController
 {
+    /**
+     * Liste tous les programmes d'études
+     * 
+     * @param ProgramRepository $programRepository Repository des programmes
+     * @return JsonResponse JSON avec la liste des programmes
+     */
     #[Route('', methods: ['GET'])]
     public function index(ProgramRepository $programRepository): JsonResponse
     {
@@ -27,6 +45,13 @@ final class ProgramController extends AbstractController
         ));
     }
 
+    /**
+     * Affiche les détails d'un programme d'études
+     * 
+     * @param int $id Identifiant du programme
+     * @param ProgramRepository $programRepository Repository des programmes
+     * @return JsonResponse JSON avec les détails du programme ou 404
+     */
     #[Route('/{id}', methods: ['GET'])]
     public function show(int $id, ProgramRepository $programRepository): JsonResponse
     {

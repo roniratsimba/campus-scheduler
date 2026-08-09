@@ -7,10 +7,21 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
+ * Repository LevelRepository - Accès aux données des niveaux académiques
+ * 
+ * Fournit l'accès aux données des niveaux (L1, L2, M1, etc.).
+ * 
+ * @author Campus Scheduler Team
+ * @version 1.0
  * @extends ServiceEntityRepository<Level>
  */
 class LevelRepository extends ServiceEntityRepository
 {
+    /**
+     * Constructeur - Initialise le repository
+     * 
+     * @param ManagerRegistry $registry Registre des gestionnaires d'entités
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Level::class);

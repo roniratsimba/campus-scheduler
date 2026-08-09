@@ -8,11 +8,38 @@ use App\Repository\RoomRepository;
 use App\Repository\TeacherRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
+/**
+ * Contrôleur PublicScheduleController - API publique pour l'emploi du temps
+ * 
+ * Fournit des endpoints publics pour consulter les emplois du temps
+ * sans authentification. Accessible aux étudiants et enseignants.
+ * 
+ * Routes disponibles :
+ * - GET /api/public/schedule/group/{id} : Emploi du temps d'un groupe
+ * - GET /api/public/schedule/teacher/{id} : Emploi du temps d'un enseignant
+ * - GET /api/public/schedule/room/{id} : Emploi du temps d'une salle
+ * - GET /api/public/groups : Liste de tous les groupes
+ * - GET /api/public/teachers : Liste de tous les enseignants
+ * - GET /api/public/rooms : Liste de toutes les salles
+ * - GET /api/public/rooms/free : Salles libres à un créneau donné
+ * 
+ * @author Campus Scheduler Team
+ * @version 1.0
+ */
 #[Route('/api/public')]
 class PublicScheduleController extends AbstractController
 {
+    /**
+     * Retourne l'emploi du temps d'un groupe académique
+     * 
+     * @param int $id Identifiant du groupe
+     * @param AcademicGroupRepository $groupRepository Repository des groupes
+     * @param CourseSessionRepository $sessionRepository Repository des séances
+     * @return JsonResponse JSON avec les infos du groupe et ses séances
+     */
     #[Route('/schedule/group/{id}', methods: ['GET'])]
     public function getGroupSchedule(
         int $id,
@@ -41,6 +68,14 @@ class PublicScheduleController extends AbstractController
         ]);
     }
 
+    /**
+     * Retourne l'emploi du temps d'un enseignant
+     * 
+     * @param int $id Identifiant de l'enseignant
+     * @param TeacherRepository $teacherRepository Repository des enseignants
+     * @param CourseSessionRepository $sessionRepository Repository des séances
+     * @return JsonResponse JSON avec les infos de l'enseignant et ses séances
+     */
     #[Route('/schedule/teacher/{id}', methods: ['GET'])]
     public function getTeacherSchedule(
         int $id,
@@ -69,6 +104,14 @@ class PublicScheduleController extends AbstractController
         ]);
     }
 
+    /**
+     * Retourne l'emploi du temps d'une salle
+     * 
+     * @param int $id Identifiant de la salle
+     * @param RoomRepository $roomRepository Repository des salles
+     * @param CourseSessionRepository $sessionRepository Repository des séances
+     * @return JsonResponse JSON avec les infos de la salle et ses séances
+     */
     #[Route('/schedule/room/{id}', methods: ['GET'])]
     public function getRoomSchedule(
         int $id,
@@ -88,7 +131,7 @@ class PublicScheduleController extends AbstractController
                 'id' => $room->getId(),
                 'name' => $room->getName(),
                 'code' => $room->getCode(),
-                'type' => $room->getRoomType()?->getName(),
+                'type' => $room->getType(),
             ],
             'sessions' => array_map(
                 fn ($session) => $this->serializeSession($session),
@@ -97,6 +140,12 @@ class PublicScheduleController extends AbstractController
         ]);
     }
 
+    /**
+     * Liste tous les groupes académiques
+     * 
+     * @param AcademicGroupRepository $groupRepository Repository des groupes
+     * @return JsonResponse JSON avec la liste des groupes
+     */
     #[Route('/groups', methods: ['GET'])]
     public function listGroups(AcademicGroupRepository $groupRepository): JsonResponse
     {
@@ -113,6 +162,12 @@ class PublicScheduleController extends AbstractController
         ));
     }
 
+    /**
+     * Liste tous les enseignants
+     * 
+     * @param TeacherRepository $teacherRepository Repository des enseignants
+     * @return JsonResponse JSON avec la liste des enseignants
+     */
     #[Route('/teachers', methods: ['GET'])]
     public function listTeachers(TeacherRepository $teacherRepository): JsonResponse
     {
@@ -129,6 +184,12 @@ class PublicScheduleController extends AbstractController
         ));
     }
 
+    /**
+     * Liste toutes les salles
+     * 
+     * @param RoomRepository $roomRepository Repository des salles
+     * @return JsonResponse JSON avec la liste des salles
+     */
     #[Route('/rooms', methods: ['GET'])]
     public function listRooms(RoomRepository $roomRepository): JsonResponse
     {
@@ -139,31 +200,48 @@ class PublicScheduleController extends AbstractController
                 'id' => $room->getId(),
                 'name' => $room->getName(),
                 'code' => $room->getCode(),
-                'type' => $room->getRoomType()?->getName(),
+                'type' => $room->getType(),
             ],
             $rooms
         ));
     }
 
+    /**
+     * Trouve les salles libres à un créneau horaire donné
+     * 
+     * Paramètres query requis :
+     * - dayOfWeek : Jour de la semaine (ex: MONDAY)
+     * - startTime : Heure de début (ex: 08:00)
+     * - endTime : Heure de fin (ex: 10:00)
+     * - weekId : Identifiant de la semaine
+     * 
+     * @param Request $request Requête HTTP avec les paramètres query
+     * @param RoomRepository $roomRepository Repository des salles
+     * @param CourseSessionRepository $sessionRepository Repository des séances
+     * @return JsonResponse JSON avec la liste des salles libres
+     */
     #[Route('/rooms/free', methods: ['GET'])]
     public function findFreeRooms(
         Request $request,
         RoomRepository $roomRepository,
         CourseSessionRepository $sessionRepository
     ): JsonResponse {
+        // Récupération des paramètres de la requête
         $dayOfWeek = $request->query->get('dayOfWeek');
         $startTime = $request->query->get('startTime');
         $endTime = $request->query->get('endTime');
         $weekId = $request->query->get('weekId');
 
+        // Validation des paramètres requis
         if (!$dayOfWeek || !$startTime || !$endTime || !$weekId) {
             return $this->json(['message' => 'Missing required parameters'], 400);
         }
 
+        // Récupération de toutes les salles
         $allRooms = $roomRepository->findAll();
         $occupiedRoomIds = [];
 
-        // Find rooms occupied during the specified time slot
+        // Recherche des salles occupées pendant le créneau spécifié
         $sessions = $sessionRepository->createQueryBuilder('cs')
             ->join('cs.timeSlot', 'ts')
             ->join('cs.room', 'r')
@@ -178,13 +256,14 @@ class PublicScheduleController extends AbstractController
             ->getQuery()
             ->getResult();
 
+        // Collecte des identifiants des salles occupées
         foreach ($sessions as $session) {
             if ($session->getRoom()) {
                 $occupiedRoomIds[] = $session->getRoom()->getId();
             }
         }
 
-        // Filter out occupied rooms
+        // Filtrage pour ne garder que les salles libres
         $freeRooms = array_filter($allRooms, function ($room) use ($occupiedRoomIds) {
             return !in_array($room->getId(), $occupiedRoomIds);
         });
@@ -194,12 +273,21 @@ class PublicScheduleController extends AbstractController
                 'id' => $room->getId(),
                 'name' => $room->getName(),
                 'code' => $room->getCode(),
-                'type' => $room->getRoomType()?->getName(),
+                'type' => $room->getType(),
             ],
             $freeRooms
         ));
     }
 
+    /**
+     * Sérialise une séance de cours en tableau JSON
+     * 
+     * Convertit l'objet CourseSession en tableau associatif
+     * pour l'envoi via l'API JSON.
+     * 
+     * @param mixed $session La séance à sérialiser
+     * @return array Tableau représentant la séance
+     */
     private function serializeSession($session): array
     {
         return [

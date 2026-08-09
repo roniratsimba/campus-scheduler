@@ -47,64 +47,78 @@ export default function HomePage() {
   }, []);
 
   if (loading) {
-    return <div>Chargement...</div>;
+    return <div className="loading">Chargement...</div>;
   }
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Consultation des emplois du temps</h1>
-
-      <div style={{ marginBottom: "2rem" }}>
-        <h2>Par groupe</h2>
-        <select
-          onChange={(e) => navigate(`/public/group/${e.target.value}`)}
-          style={{ padding: "0.5rem", minWidth: "300px" }}
-        >
-          <option value="">Sélectionner un groupe...</option>
-          {groups.map((group) => (
-            <option key={group.id} value={group.id}>
-              {group.displayName} ({group.level} - {group.program})
-            </option>
-          ))}
-        </select>
+    <div className="container">
+      <div style={{ textAlign: "center", marginBottom: "3rem" }}>
+        <h1>Campus Scheduler</h1>
+        <p>Consultez les emplois du temps par groupe, enseignant ou salle</p>
       </div>
 
-      <div style={{ marginBottom: "2rem" }}>
-        <h2>Par enseignant</h2>
-        <select
-          onChange={(e) => navigate(`/public/teacher/${e.target.value}`)}
-          style={{ padding: "0.5rem", minWidth: "300px" }}
-        >
-          <option value="">Sélectionner un enseignant...</option>
-          {teachers.map((teacher) => (
-            <option key={teacher.id} value={teacher.id}>
-              {teacher.firstName} {teacher.lastName} ({teacher.email})
-            </option>
-          ))}
-        </select>
+      <div className="grid grid-3">
+        <div className="card">
+          <h3>🎓 Par Groupe</h3>
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                navigate(`/public/group/${e.target.value}`);
+              }
+            }}
+            style={{ width: "100%", marginTop: "1rem" }}
+          >
+            <option value="">Sélectionner un groupe...</option>
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.displayName} ({group.level} - {group.program})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="card">
+          <h3>👨‍🏫 Par Enseignant</h3>
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                navigate(`/public/teacher/${e.target.value}`);
+              }
+            }}
+            style={{ width: "100%", marginTop: "1rem" }}
+          >
+            <option value="">Sélectionner un enseignant...</option>
+            {teachers.map((teacher) => (
+              <option key={teacher.id} value={teacher.id}>
+                {teacher.firstName} {teacher.lastName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="card">
+          <h3>🏢 Par Salle</h3>
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                navigate(`/public/room/${e.target.value}`);
+              }
+            }}
+            style={{ width: "100%", marginTop: "1rem" }}
+          >
+            <option value="">Sélectionner une salle...</option>
+            {rooms.map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.name} ({room.code})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div style={{ marginBottom: "2rem" }}>
-        <h2>Par salle</h2>
-        <select
-          onChange={(e) => navigate(`/public/room/${e.target.value}`)}
-          style={{ padding: "0.5rem", minWidth: "300px" }}
-        >
-          <option value="">Sélectionner une salle...</option>
-          {rooms.map((room) => (
-            <option key={room.id} value={room.id}>
-              {room.name} ({room.code} - {room.type})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div style={{ marginTop: "2rem" }}>
-        <button
-          onClick={() => navigate("/login")}
-          style={{ padding: "0.5rem 1rem" }}
-        >
-          Accès administration
+      <div className="flex-center" style={{ marginTop: "3rem" }}>
+        <button className="btn-primary" onClick={() => navigate("/login")}>
+          🔐 Accès Administration
         </button>
       </div>
     </div>
