@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../service/api";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { toast } from "../components/ui/ToastContainer";
+import { Lock, Mail, ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -17,69 +22,78 @@ export default function LoginPage() {
       const response = await api.post("/login", { email, password });
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
+      toast.success("Connexion réussie !");
       navigate("/dashboard");
-    } catch (err) {
+    } catch {
       setError("Identifiants incorrects");
+      toast.error("Identifiants incorrects");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="container">
-      <div className="card" style={{ maxWidth: "450px", margin: "2rem auto" }}>
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <h1>Connexion</h1>
-          <p>Accédez à l'administration Campus Scheduler</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-light text-night-950 mb-2">Connexion</h1>
+            <p className="text-gray-600">Accédez à l'administration Campus Scheduler</p>
+          </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: "1rem" }}>
-            <label style={{ display: "block", marginBottom: "0.5rem" }}>
-              Email
-            </label>
-            <input
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Input
               type="email"
+              label="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              style={{ width: "100%" }}
               autoFocus
+              placeholder="votre@email.com"
+              error={error ? "" : undefined}
+              icon={<Mail className="w-5 h-5 text-gray-400" />}
             />
-          </div>
 
-          <div style={{ marginBottom: "1rem" }}>
-            <label style={{ display: "block", marginBottom: "0.5rem" }}>
-              Mot de passe
-            </label>
-            <input
+            <Input
               type="password"
+              label="Mot de passe"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              style={{ width: "100%" }}
+              placeholder="••••••••"
+              error={error ? "" : undefined}
+              icon={<Lock className="w-5 h-5 text-gray-400" />}
             />
+
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              loading={loading}
+              fullWidth
+              className="w-full"
+            >
+              {loading ? "Connexion..." : "Se connecter"}
+            </Button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/")}
+              fullWidth
+              className="w-full"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Retour accueil
+            </Button>
           </div>
-
-          {error && <div className="error">{error}</div>}
-
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={loading}
-            style={{ width: "100%", marginTop: "1rem" }}
-          >
-            {loading ? "Connexion..." : "Se connecter"}
-          </button>
-        </form>
-
-        <button
-          className="btn-secondary"
-          onClick={() => navigate("/")}
-          style={{ width: "100%", marginTop: "1rem" }}
-        >
-          ← Retour accueil
-        </button>
+        </Card>
       </div>
     </div>
   );

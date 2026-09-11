@@ -96,6 +96,7 @@ final class ScheduleWeekController extends AbstractController
     public function publish(
         int $id,
         ScheduleWeekRepository $scheduleWeekRepository,
+        CourseSessionRepository $courseSessionRepository,
         EntityManagerInterface $entityManager
     ): JsonResponse {
         // Recherche de la semaine source
@@ -106,6 +107,15 @@ final class ScheduleWeekController extends AbstractController
                 ['message' => 'ScheduleWeek not found'],
                 404
             );
+        }
+
+        // BR-004 : contrôler les conflits avant publication
+        $conflicts = $courseSessionRepository->weekConflicts($week);
+        if (count($conflicts) > 0) {
+            return $this->json([
+                'message' => 'Cannot publish the week: conflicts detected',
+                'conflicts' => $conflicts,
+            ], 409);
         }
 
         // Mise à jour du statut et de la date de publication
@@ -175,6 +185,14 @@ final class ScheduleWeekController extends AbstractController
             );
         }
 
+        // BR-004 : une semaine publiée ne peut plus être modifiée
+        if ($targetWeek->getStatus() === 'PUBLISHED') {
+            return $this->json(
+                ['message' => 'Cannot copy into a published week'],
+                400
+            );
+        }
+
         // Récupération des séances de la semaine source
         $sessions = $sessionRepository->findBy(['scheduleWeek' => $sourceWeek]);
 
@@ -204,5 +222,114 @@ final class ScheduleWeekController extends AbstractController
             'message' => 'Week copied successfully',
             'sessionsCopied' => count($sessions),
         ]);
+    }
+
+    /**
+     * Crée une nouvelle semaine d'emploi du temps
+     * 
+     * @param Request $request Requête HTTP avec les données de la semaine
+     * @param EntityManagerInterface $em EntityManager Doctrine
+     * @return JsonResponse JSON avec la semaine créée
+     */
+    #[Route('', methods: ['POST'])]
+    public function create(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        $week = new ScheduleWeek();
+        $week->setStartDate(isset($data['startDate']) ? new \DateTimeImmutable($data['startDate']) : null);
+        $week->setEndDate(isset($data['endDate']) ? new \DateTimeImmutable($data['endDate']) : null);
+        $week->setStatus($data['status'] ?? 'DRAFT');
+
+        $em->persist($week);
+        $em->flush();
+
+        return $this->json([
+            'id' => $week->getId(),
+            'startDate' => $week->getStartDate()?->format('Y-m-d'),
+            'endDate' => $week->getEndDate()?->format('Y-m-d'),
+            'status' => $week->getStatus(),
+            'publishedAt' => $week->getPublishedAt()?->format('Y-m-d H:i:s'),
+        ], 201);
+    }
+
+    /**
+     * Modifie une semaine d'emploi du temps existante
+     * 
+     * @param int $id Identifiant de la semaine
+     * @param Request $request Requête HTTP avec les données modifiées
+     * @param ScheduleWeekRepository $scheduleWeekRepository Repository des semaines
+     * @param EntityManagerInterface $em EntityManager Doctrine
+     * @return JsonResponse JSON avec la semaine modifiée ou 404
+     */
+    #[Route('/{id}', methods: ['PUT'])]
+    public function update(int $id, Request $request, ScheduleWeekRepository $scheduleWeekRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $week = $scheduleWeekRepository->find($id);
+
+        if (!$week) {
+            return $this->json(['message' => 'ScheduleWeek not found'], 404);
+        }
+
+        // BR-004 : une semaine publiée ne peut plus être modifiée
+        if ($week->getStatus() === 'PUBLISHED') {
+            return $this->json(
+                ['message' => 'A published week cannot be modified'],
+                400
+            );
+        }
+
+        $data = json_decode($request->getContent(), true);
+
+        if (isset($data['startDate'])) {
+            $week->setStartDate(new \DateTimeImmutable($data['startDate']));
+        }
+        if (isset($data['endDate'])) {
+            $week->setEndDate(new \DateTimeImmutable($data['endDate']));
+        }
+        if (isset($data['status'])) {
+            $week->setStatus($data['status']);
+        }
+
+        $em->flush();
+
+        return $this->json([
+            'id' => $week->getId(),
+            'startDate' => $week->getStartDate()?->format('Y-m-d'),
+            'endDate' => $week->getEndDate()?->format('Y-m-d'),
+            'status' => $week->getStatus(),
+            'publishedAt' => $week->getPublishedAt()?->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
+     * Supprime une semaine d'emploi du temps
+     * 
+     * @param int $id Identifiant de la semaine
+     * @param ScheduleWeekRepository $scheduleWeekRepository Repository des semaines
+     * @param EntityManagerInterface $em EntityManager Doctrine
+     * @return JsonResponse JSON de confirmation ou 404
+     */
+    #[Route('/{id}', methods: ['DELETE'])]
+    public function delete(int $id, ScheduleWeekRepository $scheduleWeekRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $week = $scheduleWeekRepository->find($id);
+
+        if (!$week) {
+            return $this->json(['message' => 'ScheduleWeek not found'], 404);
+        }
+
+        // BR-004 : une semaine publiée ne peut plus être supprimée
+        if ($week->getStatus() === 'PUBLISHED') {
+            return $this->json(
+                ['message' => 'A published week cannot be deleted'],
+                400
+            );
+        }
+
+        $em->remove($week);
+        $em->flush();
+
+        return $this->json(['message' => 'ScheduleWeek deleted successfully']);
     }
 }

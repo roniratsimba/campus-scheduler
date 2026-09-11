@@ -25,6 +25,13 @@ interface AcademicGroup {
   groupNumber: number;
 }
 
+interface ScheduleWeek {
+  id: number;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
 interface TimeSlot {
   id: number;
   dayOfWeek: string;
@@ -42,6 +49,7 @@ type Props = {
   onClose: () => void;
   onCreated: () => void;
   selectedCell: SelectedCell;
+  selectedWeekId?: number;
 };
 
 export default function CourseSessionModal({
@@ -49,19 +57,22 @@ export default function CourseSessionModal({
   onClose,
   onCreated,
   selectedCell,
+  selectedWeekId,
 }: Props) {
   // États des données issues de l'API
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [groups, setGroups] = useState<AcademicGroup[]>([]);
+  const [scheduleWeeks, setScheduleWeeks] = useState<ScheduleWeek[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
 
-  // États du formulaire (timeSlotId a été supprimé d'ici)
+  // États du formulaire
   const [teacherId, setTeacherId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [roomId, setRoomId] = useState("");
   const [academicGroupId, setAcademicGroupId] = useState("");
+  const [scheduleWeekId, setScheduleWeekId] = useState("");
   const [deliveryMode, setDeliveryMode] = useState("PRESENTIAL");
   const [status, setStatus] = useState("DRAFT");
   const [errorMessage, setErrorMessage] = useState("");
@@ -84,15 +95,22 @@ export default function CourseSessionModal({
       api.get("/subjects"),
       api.get("/rooms"),
       api.get("/academic-groups"),
+      api.get("/schedule-weeks"),
       api.get("/timeslots"),
-    ]).then(([t, s, r, g, ts]) => {
+    ]).then(([t, s, r, g, w, ts]) => {
       setTeachers(t.data);
       setSubjects(s.data);
       setRooms(r.data);
       setGroups(g.data);
+      setScheduleWeeks(w.data);
       setTimeSlots(ts.data);
+      if (selectedWeekId) {
+        setScheduleWeekId(String(selectedWeekId));
+      } else if (w.data.length > 0) {
+        setScheduleWeekId(String(w.data[0].id));
+      }
     });
-  }, [open]);
+  }, [open, selectedWeekId]);
 
   const handleSubmit = async () => {
     setErrorMessage("");
@@ -103,14 +121,19 @@ export default function CourseSessionModal({
       return;
     }
 
+    if (!scheduleWeekId) {
+      setErrorMessage("Veuillez sélectionner une semaine.");
+      return;
+    }
+
     try {
       await api.post("/course-sessions", {
         teacherId: Number(teacherId),
         subjectId: Number(subjectId),
         roomId: Number(roomId),
-        timeSlotId: currentSlot.id, // 🌟 Utilisation directe de l'ID calculé
+        timeSlotId: currentSlot.id,
         academicGroupIds: [Number(academicGroupId)],
-        scheduleWeekId: 1,
+        scheduleWeekId: Number(scheduleWeekId),
         deliveryMode,
         status,
       });
@@ -206,6 +229,15 @@ export default function CourseSessionModal({
             {groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.level} {g.program} G{g.groupNumber}
+              </option>
+            ))}
+          </select>
+
+          <select value={scheduleWeekId} onChange={(e) => setScheduleWeekId(e.target.value)}>
+            <option value="">Semaine</option>
+            {scheduleWeeks.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.startDate} → {w.endDate} ({w.status})
               </option>
             ))}
           </select>

@@ -4,9 +4,9 @@
 
 ### Backend (Symfony)
 - PHP 8.4 ou supérieur
-- Composer
-- SQLite (inclus avec PHP) ou PostgreSQL
-- Extension PHP : pdo_sqlite ou pdo_pgsql
+- Composer 2
+- PostgreSQL 16 (service démarré, port 5432)
+- Extension PHP : `pdo_pgsql`
 
 ### Frontend (React)
 - Node.js 18 ou supérieur
@@ -21,16 +21,34 @@ cd backend
 
 # Installer les dépendances
 composer install
+```
 
-# Configurer la base de données
-# Le fichier .env est déjà configuré pour SQLite
-# DATABASE_URL="sqlite:///%kernel.project_dir%/var/data_%kernel.environment%.db"
+#### Base de données PostgreSQL
 
-# Exécuter les migrations
+Le projet utilise **PostgreSQL** (et non SQLite). Deux façons d'initialiser la base, identiques dans le résultat du schéma :
+
+**Option A — script SQL (recommandé, inclut les données de démonstration) :**
+
+```bash
+# Base de données (à faire une fois)
+psql -U postgres -c "CREATE DATABASE campus_scheduler;"
+
+# Création du schéma + jeu de données de démo
+psql -U postgres -d campus_scheduler -f backend/database/init.sql
+```
+
+**Option B — migrations Doctrine (schéma seul) :**
+
+```bash
 php bin/console doctrine:migrations:migrate
+```
 
-# Charger les fixtures (optionnel)
-php bin/console doctrine:fixtures:load
+#### Connexion
+
+Vérifiez le `DATABASE_URL` dans `backend/.env` (ou surchargez-le dans `backend/.env.local`) :
+
+```
+DATABASE_URL="postgresql://POSTGRES_USER:PASSWORD@127.0.0.1:5432/campus_scheduler?serverVersion=16&charset=utf8"
 ```
 
 ### 2. Configuration du Frontend
@@ -38,21 +56,31 @@ php bin/console doctrine:fixtures:load
 ```bash
 cd frontend
 
-# Installer les dépendances
 npm install
 ```
 
-### 3. Installation de l'authentification JWT (optionnel)
+Par défaut, l'API est appelée sur `http://127.0.0.1:8000/api`. Pour surcharger :
 
 ```bash
-cd backend
-
-# Installer le bundle
-composer require lexik/jwt-authentication-bundle
-
-# Générer les clés
-php bin/console lexik:jwt:generate-keypair
+# copier .env.example -> .env.local puis adapter si besoin
+# VITE_API_URL=http://127.0.0.1:8000/api
 ```
+
+### 3. Authentification (état actuel)
+
+Le JWT n'est **pas encore** implémenté : `POST /api/login` renvoie un jeton *placeholder*. Les routes d'administration du frontend sont protégées par une garde (`RequireAuth`) basée sur la présence du jeton en `localStorage`.
+
+Pour une vraie authentification, installer ensuite `lexik/jwt-authentication-bundle` et activer `jwt` dans le firewall `main` de `config/packages/security.yaml`.
+
+## Données de démonstration
+
+Le script `backend/database/init.sql` insère : 5 niveaux, 5 programmes, 6 groupes, 6 enseignants, 10 matières, 7 salles, 20 créneaux, 4 semaines (2 publiées, 2 brouillons), 10 séances et l'administrateur :
+
+| Rôle | Email | Mot de passe |
+| --- | --- | --- |
+| Administrateur | `admin@campus.local` | `admin123` |
+
+> À changer avant toute mise en production.
 
 ## Démarrage de l'application
 
@@ -61,25 +89,23 @@ php bin/console lexik:jwt:generate-keypair
 ```bash
 cd backend
 
-# Option 1: Avec Symfony CLI (recommandé)
+# Option 1 : Symfony CLI (recommandé)
 symfony server:start --port=8000
 
-# Option 2: Avec le serveur PHP intégré
-php -S localhost:8000 -t public
+# Option 2 : serveur PHP intégré
+php -S 127.0.0.1:8000 -t public
 ```
 
-Le backend sera accessible sur `http://localhost:8000`
+Le backend est accessible sur `http://127.0.0.1:8000`.
 
 ### Frontend
 
 ```bash
 cd frontend
-
-# Démarrer le serveur de développement
 npm run dev
 ```
 
-Le frontend sera accessible sur `http://localhost:5173`
+Le frontend est accessible sur `http://localhost:5173`.
 
 ## Test de l'application
 
@@ -88,119 +114,105 @@ Le frontend sera accessible sur `http://localhost:5173`
 #### Consultation publique (sans authentification)
 
 ```bash
-# Lister les groupes
+# Lister les groupes / enseignants / salles
 curl http://localhost:8000/api/public/groups
-
-# Lister les enseignants
 curl http://localhost:8000/api/public/teachers
-
-# Lister les salles
 curl http://localhost:8000/api/public/rooms
 
-# Voir l'EDT d'un groupe
+# EDT d'un groupe, d'un enseignant, d'une salle (semaines publiées uniquement)
 curl http://localhost:8000/api/public/schedule/group/1
-
-# Voir l'EDT d'un enseignant
 curl http://localhost:8000/api/public/schedule/teacher/1
-
-# Voir l'EDT d'une salle
 curl http://localhost:8000/api/public/schedule/room/1
 
-# Rechercher des salles libres
+# Salles libres (chevauchement de créneau, séances ONLINE ignorées)
 curl "http://localhost:8000/api/public/rooms/free?dayOfWeek=MONDAY&startTime=08:00&endTime=10:00&weekId=1"
 ```
 
-#### Endpoints administratifs (nécessitent l'authentification)
+#### Authentification et endpoints administratifs
 
 ```bash
-# Créer un utilisateur
+# Connexion (renvoie { user, token } — jeton placeholder)
+curl -X POST http://localhost:8000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@campus.local","password":"admin123"}'
+
+# Inscription
 curl -X POST http://localhost:8000/api/register \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"password123","role":"ROLE_ADMIN"}'
 
-# Connexion
-curl -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"password123"}'
-
-# Lister les séances (avec JWT token)
+# CRUD (enseignants, matières, salles, groupes, semaines, séances)
 curl http://localhost:8000/api/course-sessions \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Publish une semaine de brouillon
+curl -X POST http://localhost:8000/api/schedule-weeks/3/publish
 ```
 
 ### 2. Test de l'interface Frontend
 
-1. Ouvrir `http://localhost:5173` dans votre navigateur
-2. Vous verrez la page d'accueil avec les options de consultation
-3. Sélectionner un groupe, enseignant ou salle pour voir son EDT
-4. Cliquer sur "Accès administration" pour aller à la page de connexion
-5. Se connecter avec les identifiants créés
-6. Accéder au dashboard pour gérer les données
+1. Ouvrir `http://localhost:5173` : page d'accueil avec consultation publique (EDT par groupe/enseignant/salle, salles libres).
+2. Cliquer sur « Accès administration » → `/login`.
+3. Se connecter avec `admin@campus.local` / `admin123`.
+4. Accéder au dashboard : gestion des enseignants, matières, salles, groupes, semaines, séances (grille avec sélecteur de semaine).
 
 ### 3. Fonctionnalités à tester
 
-- **Consultation publique** : EDT par groupe, enseignant, salle
-- **Recherche de salles libres** : Selon jour et créneau horaire
-- **Gestion des séances** : Création, modification, suppression
-- **Publication d'EDT** : Publier une semaine
-- **Copie de semaine** : Copier les séances d'une semaine vers une autre
-- **Détection de conflits** : Enseignant, salle, groupe
+- **Consultation publique** : EDT par groupe, enseignant, salle (uniquement les semaines publiées).
+- **Recherche de salles libres** : selon jour + créneau (chevauchement géré).
+- **Gestion des séances** : création (grille + modal), avec détection de conflits enseignant/salle/groupe, mode ONLINE sans salle, PRESENTIAL avec salle obligatoire.
+- **Semaines** : création, copie entre semaines, publication avec validation des conflits ; une semaine publiée devient immuable (BR-004).
 
 ## Dépannage
 
-### Problèmes courants
+### Connexion à la base de données
+- Vérifier que PostgreSQL est démarré (port 5432) et que `DATABASE_URL` (`.env` ou `.env.local`) est correct.
 
-**PHP non reconnu**
-- Installer PHP depuis https://windows.php.net/download/
-- Ajouter PHP au PATH système
+### « Violation de contrainte unique … (id)=(1) » à la création d'un enregistrement
+- Les séquences des colonnes `GENERATED BY DEFAULT AS IDENTITY` ne sont pas synchronisées avec les données importées. Les resynchroniser :
+  ```sql
+  SELECT setval(pg_get_serial_sequence('teacher', 'id'), (SELECT COALESCE(MAX(id), 1) FROM teacher));
+  ```
+  (recommencer pour chaque table). Réinitialiser proprement en relançant `backend/database/init.sql` sur une base vide.
 
-**Composer non reconnu**
-- Installer Composer depuis https://getcomposer.org/download/
-- Ajouter Composer au PATH système
+### Caractères accentués affichés en double (« AmphithÃ©Ã¢tre »)
+- Données importées avec un mauvais encodage client. Réimporter avec `PGCLIENTENCODING=UTF8`, ou corriger les lignes concernées.
 
-**Node.js non reconnu**
-- Installer Node.js depuis https://nodejs.org/
+### Erreur CORS
+- Vérifier `config/packages/nelmio_cors.yaml` : l'origine du frontend (ex. `http://localhost:5173`) doit être autorisée.
 
-**Erreur de connexion à la base de données**
-- Vérifier que le DATABASE_URL est correct dans .env
-- Pour SQLite, s'assurer que le dossier var existe et est accessible en écriture
+### Commandes utiles
+```bash
+cd backend
+php bin/console cache:clear
+php bin/console lint:container
+php bin/console doctrine:schema:validate --skip-sync
 
-**Erreur CORS**
-- Vérifier la configuration CORS dans config/packages/nelmio_cors.yaml
-- L'URL du frontend doit être autorisée
+cd frontend
+npm run build
+npm run lint
+```
 
 ## Structure du projet
 
 ```
 campus-scheduler/
-├── backend/                 # Application Symfony
-│   ├── src/
-│   │   ├── Controller/      # Contrôleurs API
-│   │   ├── Entity/          # Entités Doctrine
-│   │   ├── Repository/      # Repositories
-│   │   └── Enum/            # Énumérations
-│   ├── config/              # Configuration
-│   ├── migrations/          # Migrations de base de données
-│   └── public/              # Point d'entrée web
-├── frontend/                # Application React
-│   ├── src/
-│   │   ├── components/      # Composants React
-│   │   ├── pages/           # Pages de l'application
-│   │   ├── router/          # Configuration du router
-│   │   ├── service/         # Services API
-│   │   └── types/           # Types TypeScript
-│   └── public/              # Fichiers statiques
-└── docs/                    # Documentation
-    ├── architecture/        # Diagrammes d'architecture
-    ├── database/            # Schéma de base de données
-    └── uml/                 # Diagrammes UML
+├── backend/                 # Application Symfony (API REST)
+│   ├── config/              # Configuration (routes, sécurité, doctrine…)
+│   ├── database/            # init.sql (schéma + démo PostgreSQL)
+│   ├── migrations/          # Migrations Doctrine
+│   ├── public/              # Point d'entrée web
+│   └── src/
+│       ├── Controller/      # Contrôleurs API (admin + public)
+│       ├── Entity/          # Entités Doctrine
+│       ├── Enum/            # Énumérations (DeliveryMode…)
+│       └── Repository/      # Accès aux données + validation des conflits
+├── frontend/                # Application React (SPA)
+│   └── src/
+│       ├── components/      # Layout, Sidebar, RequireAuth, Modal…
+│       ├── pages/           # Pages (Home, Login, Dashboard, EDT publics…)
+│       ├── router/          # Configuration du router
+│       └── service/         # Client API (axios + interceptor auth)
+├── docs/                    # Documentation (ADR, architecture, db, UML)
+└── git_utils.py             # Utilitaires Git (scripts de maintenance)
 ```
-
-## Prochaines étapes
-
-1. Installer les dépendances manquantes (PHP, Composer, Node.js)
-2. Configurer la base de données
-3. Exécuter les migrations
-4. Démarrer les serveurs
-5. Tester les fonctionnalités
-6. Personnaliser l'interface selon vos besoins

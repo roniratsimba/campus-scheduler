@@ -12,6 +12,14 @@ type CourseSession = {
   startTime: string;
   endTime: string;
   groups: string[];
+  weekId: number;
+};
+
+type ScheduleWeek = {
+  id: number;
+  startDate: string;
+  endDate: string;
+  status: string;
 };
 
 type SelectedCell = {
@@ -42,6 +50,10 @@ const SLOTS = ["08:00", "10:00", "14:00", "16:00"];
 export default function TimetablePage() {
   const [showForm, setShowForm] = useState(false);
   const [sessions, setSessions] = useState<CourseSession[]>([]);
+  const [weeks, setWeeks] = useState<ScheduleWeek[]>([]);
+  const [selectedWeekId, setSelectedWeekId] = useState<number | undefined>(
+    undefined
+  );
   const [selectedCell, setSelectedCell] = useState<SelectedCell>(null);
 
   const loadSessions = () => {
@@ -50,13 +62,25 @@ export default function TimetablePage() {
     });
   };
 
+  const loadWeeks = () => {
+    api.get("/schedule-weeks").then((res) => {
+      const weekList: ScheduleWeek[] = res.data;
+      setWeeks(weekList);
+      if (weekList.length > 0) {
+        setSelectedWeekId((current) => current ?? weekList[0].id);
+      }
+    });
+  };
+
   useEffect(() => {
     loadSessions();
+    loadWeeks();
   }, []);
 
   const findSessions = (day: string, slot: string) => {
     return sessions.filter(
       (s) =>
+        s.weekId === selectedWeekId &&
         s.dayOfWeek === day &&
         s.startTime.startsWith(slot)
     );
@@ -70,6 +94,20 @@ export default function TimetablePage() {
   return (
     <div>
       <h1>Emploi du temps</h1>
+
+      <label>
+        Semaine :{" "}
+        <select
+          value={selectedWeekId ?? ""}
+          onChange={(e) => setSelectedWeekId(Number(e.target.value))}
+        >
+          {weeks.map((w) => (
+            <option key={w.id} value={w.id}>
+              {w.startDate} → {w.endDate} ({w.status})
+            </option>
+          ))}
+        </select>
+      </label>
 
       <table border={1} cellPadding={10}>
         <thead>
@@ -148,6 +186,7 @@ export default function TimetablePage() {
           setSelectedCell(null);
         }}
         selectedCell={selectedCell}
+        selectedWeekId={selectedWeekId}
       />
     </div>
   );

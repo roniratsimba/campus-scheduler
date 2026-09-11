@@ -42,13 +42,25 @@ class AuthController extends AbstractController
     ): JsonResponse {
         // Décodage des données JSON
         $data = json_decode($request->getContent(), true);
-        
+
+        if (!is_array($data)) {
+            return $this->json(['message' => 'Invalid JSON payload'], 400);
+        }
+
         $email = $data['email'] ?? null;
         $password = $data['password'] ?? null;
 
         // Validation des champs requis
         if (!$email || !$password) {
             return $this->json(['message' => 'Email and password required'], 400);
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->json(['message' => 'Invalid email address'], 400);
+        }
+
+        if (strlen((string) $password) < 8) {
+            return $this->json(['message' => 'Password must be at least 8 characters'], 400);
         }
 
         // Recherche de l'utilisateur par email
@@ -97,9 +109,23 @@ class AuthController extends AbstractController
             return $this->json(['message' => 'Email and password required'], 400);
         }
 
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->json(['message' => 'Invalid email address'], 400);
+        }
+
+        if (strlen((string) $password) < 8) {
+            return $this->json(['message' => 'Password must be at least 8 characters'], 400);
+        }
+
         // Vérification si l'utilisateur existe déjà
         if ($userRepository->findByEmail($email)) {
-            return $this->json(['message' => 'User already exists'], 400);
+            return $this->json(['message' => 'Email already in use'], 409);
+        }
+
+        // Validation du rôle (liste blanche)
+        $allowedRoles = ['ROLE_USER', 'ROLE_ADMIN'];
+        if (!in_array($role, $allowedRoles, true)) {
+            return $this->json(['message' => 'Invalid role'], 400);
         }
 
         // Création du nouvel utilisateur

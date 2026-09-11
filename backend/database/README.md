@@ -98,10 +98,10 @@ SELECT COUNT(*) FROM users;
 
 ## Configuration de l'application Symfony
 
-Le fichier `.env` est déjà configuré pour PostgreSQL :
+Le fichier `backend/.env` du projet contient une `DATABASE_URL` pré-configurée pour PostgreSQL (adaptez-la à votre installation locale, par exemple via `backend/.env.local`) :
 
 ```
-DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/campus_scheduler?serverVersion=16&charset=utf8"
+DATABASE_URL="postgresql://postgres:VOTRE_MOT_DE_PASSE@127.0.0.1:5432/campus_scheduler?serverVersion=16&charset=utf8"
 ```
 
 Si vous avez configuré PostgreSQL avec des paramètres différents, modifiez cette ligne :

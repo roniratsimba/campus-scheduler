@@ -52,7 +52,8 @@ class PublicScheduleController extends AbstractController
             return $this->json(['message' => 'Group not found'], 404);
         }
 
-        $sessions = $sessionRepository->findByGroup($id);
+        // Les EDT publics ne montrent que les semaines publiées (BR-004)
+        $sessions = $sessionRepository->findPublishedByGroup($id);
 
         return $this->json([
             'group' => [
@@ -88,7 +89,8 @@ class PublicScheduleController extends AbstractController
             return $this->json(['message' => 'Teacher not found'], 404);
         }
 
-        $sessions = $sessionRepository->findByTeacher($id);
+        // Les EDT publics ne montrent que les semaines publiées (BR-004)
+        $sessions = $sessionRepository->findPublishedByTeacher($id);
 
         return $this->json([
             'teacher' => [
@@ -124,7 +126,8 @@ class PublicScheduleController extends AbstractController
             return $this->json(['message' => 'Room not found'], 404);
         }
 
-        $sessions = $sessionRepository->findByRoom($id);
+        // Les EDT publics ne montrent que les semaines publiées (BR-004)
+        $sessions = $sessionRepository->findPublishedByRoom($id);
 
         return $this->json([
             'room' => [
@@ -232,34 +235,57 @@ class PublicScheduleController extends AbstractController
         $endTime = $request->query->get('endTime');
         $weekId = $request->query->get('weekId');
 
-        // Validation des paramètres requis
+        // Validation des paramètres requis et du format horaire (HH:MM)
         if (!$dayOfWeek || !$startTime || !$endTime || !$weekId) {
             return $this->json(['message' => 'Missing required parameters'], 400);
+        }
+
+        // Les TIME (Doctrine) sont lus sur la date de référence 1970-01-01 :
+        // la classe ! garantit que start/end utilisent la même référence.
+        $start = \DateTime::createFromFormat('!H:i', $startTime);
+        $end = \DateTime::createFromFormat('!H:i', $endTime);
+
+        if (!$start || !$end || $start->format('H:i') !== $startTime || $end->format('H:i') !== $endTime) {
+            return $this->json(['message' => 'startTime and endTime must use the HH:MM format'], 400);
+        }
+
+        if ($start >= $end) {
+            return $this->json(['message' => 'startTime must be before endTime'], 400);
         }
 
         // Récupération de toutes les salles
         $allRooms = $roomRepository->findAll();
         $occupiedRoomIds = [];
 
-        // Recherche des salles occupées pendant le créneau spécifié
+        // Recherche des salles occupées pendant le créneau spécifié.
+        // Un créneau est occupé si une séance (hors ONLINE, qui ne réserve pas
+        // de salle physique) se déroule à cheval sur [startTime; endTime].
         $sessions = $sessionRepository->createQueryBuilder('cs')
             ->join('cs.timeSlot', 'ts')
             ->join('cs.room', 'r')
+            ->join('cs.scheduleWeek', 'w')
+            ->andWhere('w.id = :weekId')
             ->andWhere('ts.dayOfWeek = :dayOfWeek')
-            ->andWhere('ts.startTime = :startTime')
-            ->andWhere('ts.endTime = :endTime')
-            ->andWhere('cs.scheduleWeek = :weekId')
-            ->setParameter('dayOfWeek', $dayOfWeek)
-            ->setParameter('startTime', new \DateTime($startTime))
-            ->setParameter('endTime', new \DateTime($endTime))
+            ->andWhere('cs.deliveryMode <> :online')
             ->setParameter('weekId', $weekId)
+            ->setParameter('dayOfWeek', $dayOfWeek)
+            ->setParameter('online', 'ONLINE')
             ->getQuery()
             ->getResult();
 
-        // Collecte des identifiants des salles occupées
         foreach ($sessions as $session) {
-            if ($session->getRoom()) {
-                $occupiedRoomIds[] = $session->getRoom()->getId();
+            $room = $session->getRoom();
+            $timeSlot = $session->getTimeSlot();
+
+            if (!$room || !$timeSlot) {
+                continue;
+            }
+
+            $slotStart = $timeSlot->getStartTime();
+            $slotEnd = $timeSlot->getEndTime();
+
+            if ($slotStart && $slotEnd && $slotStart < $end && $slotEnd > $start) {
+                $occupiedRoomIds[] = $room->getId();
             }
         }
 
@@ -275,7 +301,7 @@ class PublicScheduleController extends AbstractController
                 'code' => $room->getCode(),
                 'type' => $room->getType(),
             ],
-            $freeRooms
+            array_values($freeRooms)
         ));
     }
 

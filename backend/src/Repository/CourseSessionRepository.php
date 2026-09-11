@@ -179,6 +179,135 @@ class CourseSessionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Retourne les séances (des semaines publiées uniquement) d'un groupe
+     * 
+     * @param int $groupId Identifiant du groupe
+     * @return array Liste des séances publiées du groupe
+     */
+    public function findPublishedByGroup(int $groupId): array
+    {
+        return $this->createQueryBuilder('cs')
+            ->join('cs.academicGroups', 'g')
+            ->join('cs.scheduleWeek', 'w')
+            ->andWhere('g.id = :groupId')
+            ->andWhere('w.status = :published')
+            ->setParameter('groupId', $groupId)
+            ->setParameter('published', 'PUBLISHED')
+            ->orderBy('cs.timeSlot', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Retourne les séances (des semaines publiées uniquement) d'un enseignant
+     * 
+     * @param int $teacherId Identifiant de l'enseignant
+     * @return array Liste des séances publiées de l'enseignant
+     */
+    public function findPublishedByTeacher(int $teacherId): array
+    {
+        return $this->createQueryBuilder('cs')
+            ->join('cs.scheduleWeek', 'w')
+            ->andWhere('cs.teacher = :teacherId')
+            ->andWhere('w.status = :published')
+            ->setParameter('teacherId', $teacherId)
+            ->setParameter('published', 'PUBLISHED')
+            ->orderBy('cs.timeSlot', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Retourne les séances (des semaines publiées uniquement) d'une salle
+     * 
+     * @param int $roomId Identifiant de la salle
+     * @return array Liste des séances publiées dans la salle
+     */
+    public function findPublishedByRoom(int $roomId): array
+    {
+        return $this->createQueryBuilder('cs')
+            ->join('cs.scheduleWeek', 'w')
+            ->andWhere('cs.room = :roomId')
+            ->andWhere('w.status = :published')
+            ->setParameter('roomId', $roomId)
+            ->setParameter('published', 'PUBLISHED')
+            ->orderBy('cs.timeSlot', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Détecte les conflits de planification dans une semaine donnée.
+     * 
+     * Un conflit existe quand deux séances de la même semaine partagent
+     * le même créneau (TimeSlot) avec :
+     *  - le même enseignant ; ou
+     *  - la même salle (BR-002, excepté pour les séances ONLINE) ; ou
+     *  - le même groupe académique (BR-003).
+     * 
+     * @param ScheduleWeek $scheduleWeek La semaine à analyser
+     * @return array Liste de messages décrivant chaque conflit détecté
+     */
+    public function weekConflicts(ScheduleWeek $scheduleWeek): array
+    {
+        $sessions = $this->findBy(['scheduleWeek' => $scheduleWeek]);
+
+        $teacherMap = [];
+        $roomMap = [];
+        $groupMap = [];
+        $conflicts = [];
+
+        foreach ($sessions as $slotSession) {
+            $teacherId = $slotSession->getTeacher()?->getId();
+            $timeSlotId = $slotSession->getTimeSlot()?->getId();
+            $roomId = $slotSession->getRoom()?->getId();
+            $isOnline = $slotSession->getDeliveryMode()?->value === 'ONLINE';
+
+            // Conflit enseignant (BR-001)
+            $key = $teacherId.'-'.$timeSlotId;
+            if (isset($teacherMap[$key]) && $teacherMap[$key] !== $slotSession->getId()) {
+                $a = $teacherMap[$key];
+                $conflicts[] = sprintf(
+                    'Teacher (id %d) has two sessions (id %d and id %d) on the same time slot',
+                    $teacherId, $a, $slotSession->getId()
+                );
+            } else {
+                $teacherMap[$key] = $slotSession->getId();
+            }
+
+            // Conflit salle (BR-002), excepté ONLINE (les séances en ligne ne réservent pas de salle physique)
+            if ($roomId !== null && !$isOnline) {
+                $key = $roomId.'-'.$timeSlotId;
+                if (isset($roomMap[$key]) && $roomMap[$key] !== $slotSession->getId()) {
+                    $a = $roomMap[$key];
+                    $conflicts[] = sprintf(
+                        'Room (id %d) is used by two sessions (id %d and id %d) on the same time slot',
+                        $roomId, $a, $slotSession->getId()
+                    );
+                } else {
+                    $roomMap[$key] = $slotSession->getId();
+                }
+            }
+
+            // Conflit groupe (BR-003)
+            foreach ($slotSession->getAcademicGroups() as $group) {
+                $key = $group->getId().'-'.$timeSlotId;
+                if (isset($groupMap[$key]) && $groupMap[$key] !== $slotSession->getId()) {
+                    $a = $groupMap[$key];
+                    $conflicts[] = sprintf(
+                        'Group (id %d) attends two sessions (id %d and id %d) on the same time slot',
+                        $group->getId(), $a, $slotSession->getId()
+                    );
+                } else {
+                    $groupMap[$key] = $slotSession->getId();
+                }
+            }
+        }
+
+        return array_values(array_unique($conflicts));
+    }
+
     //    /**
     //     * @return CourseSession[] Returns an array of CourseSession objects
     //     */

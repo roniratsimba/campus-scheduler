@@ -121,6 +121,10 @@ final class CourseSessionController extends AbstractController
             true
         );
 
+        if (!is_array($data)) {
+            return $this->json(['message' => 'Invalid JSON payload'], 400);
+        }
+
         // Récupération des entités référencées
         $teacher = $teacherRepository->find(
             $data['teacherId'] ?? null
@@ -153,7 +157,23 @@ final class CourseSessionController extends AbstractController
                 'scheduleWeek' => $scheduleWeek?->getId(),
             ], 400);
         }
-        
+
+        // BR-004 : une séance ne peut pas être ajoutée à une semaine publiée
+        if ($scheduleWeek->getStatus() === 'PUBLISHED') {
+            return $this->json(
+                ['message' => 'Cannot add a session to a published week'],
+                400
+            );
+        }
+
+        // Validation du mode de livraison
+        $deliveryMode = DeliveryMode::tryFrom($data['deliveryMode'] ?? '');
+        if (!$deliveryMode) {
+            return $this->json([
+                'message' => 'Invalid deliveryMode, expected PRESENTIAL or ONLINE',
+            ], 400);
+        }
+
         // Vérification du conflit enseignant
         if (
             $courseSessionRepository->teacherConflict(
@@ -170,7 +190,7 @@ final class CourseSessionController extends AbstractController
                 400
             );
         }
-        
+
         // Création de la séance
         $session = new CourseSession();
 
@@ -178,15 +198,30 @@ final class CourseSessionController extends AbstractController
         $session->setSubject($subject);
         $session->setTimeSlot($timeSlot);
         $session->setScheduleWeek($scheduleWeek);
+        $session->setDeliveryMode($deliveryMode);
 
-        // Gestion optionnelle de la salle avec vérification de conflit
-        if (!empty($data['roomId'])) {
+        // Gestion de la salle
+        $roomId = $data['roomId'] ?? null;
 
-            $room = $roomRepository->find(
-                $data['roomId']
-            );
+        // BR-006 : une séance PRESENTIAL doit avoir une salle
+        if ($deliveryMode === DeliveryMode::PRESENTIAL && empty($roomId)) {
+            return $this->json([
+                'message' => 'A room is required for a PRESENTIAL session',
+            ], 400);
+        }
+
+        if (!empty($roomId)) {
+            $room = $roomRepository->find($roomId);
+
+            if (!$room) {
+                return $this->json([
+                    'message' => 'Room not found'
+                ], 400);
+            }
+
+            // BR-002 : vérification du conflit salle, sauf pour les séances ONLINE
             if (
-                $room &&
+                $deliveryMode !== DeliveryMode::ONLINE &&
                 $courseSessionRepository->roomConflict(
                     $room,
                     $timeSlot,
@@ -202,27 +237,29 @@ final class CourseSessionController extends AbstractController
                 );
             }
 
-            if (!$room) {
-                return $this->json([
-                    'message' => 'Room not found'
-                ], 400);
-            }
-
             $session->setRoom($room);
         }
 
         // Ajout des groupes académiques avec vérification de conflit
-        foreach (
-            $data['academicGroupIds'] ?? []
-            as $groupId
-        ) {
+        $groupIds = $data['academicGroupIds'] ?? [];
+
+        if (!is_array($groupIds) || count($groupIds) === 0) {
+            return $this->json([
+                'message' => 'At least one academic group is required',
+            ], 400);
+        }
+
+        foreach ($groupIds as $groupId) {
 
             $group = $academicGroupRepository->find(
                 $groupId
             );
 
             if (!$group) {
-                continue;
+                return $this->json([
+                    'message' => 'Academic group not found',
+                    'groupId' => $groupId,
+                ], 400);
             }
 
             if (
@@ -245,16 +282,10 @@ final class CourseSessionController extends AbstractController
                 $group
             );
         }
-        
-        // Définition du statut et du mode de livraison
+
+        // Définition du statut
         $session->setStatus(
             $data['status'] ?? 'DRAFT'
-        );
-
-        $session->setDeliveryMode(
-            DeliveryMode::from(
-                $data['deliveryMode']
-            )
         );
 
         // Sauvegarde en base de données
@@ -304,8 +335,20 @@ final class CourseSessionController extends AbstractController
             return $this->json(['message' => 'Course session not found'], 404);
         }
 
+        // BR-004 : une séance d'une semaine publiée ne peut plus être modifiée
+        if ($session->getScheduleWeek()?->getStatus() === 'PUBLISHED') {
+            return $this->json(
+                ['message' => 'Cannot modify a session of a published week'],
+                400
+            );
+        }
+
         // Décodage des données JSON
         $data = json_decode($request->getContent(), true);
+
+        if (!is_array($data)) {
+            return $this->json(['message' => 'Invalid JSON payload'], 400);
+        }
 
         // Récupération des entités référencées
         $teacher = $teacherRepository->find($data['teacherId'] ?? null);
@@ -316,6 +359,22 @@ final class CourseSessionController extends AbstractController
         // Validation des références obligatoires
         if (!$teacher || !$subject || !$timeSlot || !$scheduleWeek) {
             return $this->json(['message' => 'Invalid references'], 400);
+        }
+
+        // BR-004 : impossible de déplacer une séance vers une semaine publiée
+        if ($scheduleWeek->getStatus() === 'PUBLISHED') {
+            return $this->json(
+                ['message' => 'Cannot move a session into a published week'],
+                400
+            );
+        }
+
+        // Validation du mode de livraison
+        $deliveryMode = DeliveryMode::tryFrom($data['deliveryMode'] ?? '');
+        if (!$deliveryMode) {
+            return $this->json([
+                'message' => 'Invalid deliveryMode, expected PRESENTIAL or ONLINE',
+            ], 400);
         }
 
         // Vérification du conflit enseignant (en excluant la séance actuelle)
@@ -334,17 +393,29 @@ final class CourseSessionController extends AbstractController
         $session->setSubject($subject);
         $session->setTimeSlot($timeSlot);
         $session->setScheduleWeek($scheduleWeek);
+        $session->setDeliveryMode($deliveryMode);
 
-        // Gestion de la salle avec vérification de conflit
+        // Gestion de la salle
+        $roomId = $data['roomId'] ?? null;
+
+        // BR-006 : une séance PRESENTIAL doit avoir une salle
+        if ($deliveryMode === DeliveryMode::PRESENTIAL && empty($roomId)) {
+            return $this->json([
+                'message' => 'A room is required for a PRESENTIAL session',
+            ], 400);
+        }
+
         $room = null;
-        if (!empty($data['roomId'])) {
-            $room = $roomRepository->find($data['roomId']);
+        if (!empty($roomId)) {
+            $room = $roomRepository->find($roomId);
 
             if (!$room) {
                 return $this->json(['message' => 'Room not found'], 400);
             }
 
+            // BR-002 : vérification du conflit salle, sauf pour les séances ONLINE
             if (
+                $deliveryMode !== DeliveryMode::ONLINE &&
                 $courseSessionRepository->roomConflict(
                     $room,
                     $timeSlot,
@@ -356,16 +427,29 @@ final class CourseSessionController extends AbstractController
             }
 
             $session->setRoom($room);
+        } elseif ($deliveryMode === DeliveryMode::ONLINE) {
+            // BR-005 : une séance ONLINE ne nécessite pas de salle
+            $session->setRoom(null);
         }
 
         // Remplacement des groupes académiques avec vérification de conflit
         $session->getAcademicGroups()->clear();
 
-        foreach ($data['academicGroupIds'] ?? [] as $groupId) {
+        $groupIds = $data['academicGroupIds'] ?? [];
+        if (!is_array($groupIds) || count($groupIds) === 0) {
+            return $this->json([
+                'message' => 'At least one academic group is required',
+            ], 400);
+        }
+
+        foreach ($groupIds as $groupId) {
             $group = $academicGroupRepository->find($groupId);
 
             if (!$group) {
-                continue;
+                return $this->json([
+                    'message' => 'Academic group not found',
+                    'groupId' => $groupId,
+                ], 400);
             }
 
             if (
@@ -382,9 +466,8 @@ final class CourseSessionController extends AbstractController
             $session->addAcademicGroup($group);
         }
 
-        // Mise à jour du statut et du mode de livraison
+        // Mise à jour du statut
         $session->setStatus($data['status'] ?? 'DRAFT');
-        $session->setDeliveryMode(DeliveryMode::from($data['deliveryMode']));
 
         // Sauvegarde en base de données
         $entityManager->flush();
@@ -413,6 +496,14 @@ final class CourseSessionController extends AbstractController
             return $this->json([
                 'message' => 'Course session not found'
             ], 404);
+        }
+
+        // BR-004 : une séance d'une semaine publiée ne peut plus être supprimée
+        if ($session->getScheduleWeek()?->getStatus() === 'PUBLISHED') {
+            return $this->json(
+                ['message' => 'Cannot delete a session of a published week'],
+                400
+            );
         }
 
         // Suppression de la séance

@@ -51,7 +51,8 @@ CREATE TABLE academic_group (
     level_id INTEGER NOT NULL,
     program_id INTEGER NOT NULL,
     FOREIGN KEY (level_id) REFERENCES level(id),
-    FOREIGN KEY (program_id) REFERENCES program(id)
+    FOREIGN KEY (program_id) REFERENCES program(id),
+    UNIQUE (level_id, program_id, group_number)
 );
 
 -- Table room (salles)
@@ -257,7 +258,7 @@ INSERT INTO course_session_academic_group (course_session_id, academic_group_id)
 -- Utilisateur admin pour démonstration (mot de passe: admin123)
 -- Le mot de passe est hashé avec bcrypt (password_hash('admin123', PASSWORD_BCRYPT))
 INSERT INTO users (email, password, role) VALUES 
-    ('admin@campus.local', '$2y$13$8Z1.7Z1.7Z1.7Z1.7Z1.7Z1.7Z1.7Z1.7Z1.7Z1.7Z1.7Z1.7Z1.7', 'ROLE_ADMIN');
+    ('admin@campus.local', '$2y$12$rYt7UkV1e6enY225xMpive3E8AG8mEzpgbymRCyEqGik6DO1J38N2', 'ROLE_ADMIN');
 
 -- Affichage du résumé
 SELECT 'Base de données initialisée avec succès!' AS message;

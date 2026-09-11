@@ -7,10 +7,21 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
+ * Repository ScheduleWeekRepository - Accès aux données des semaines d'emploi du temps
+ * 
+ * Fournit l'accès aux données des semaines d'emploi du temps.
+ * 
+ * @author Campus Scheduler Team
+ * @version 1.0
  * @extends ServiceEntityRepository<ScheduleWeek>
  */
 class ScheduleWeekRepository extends ServiceEntityRepository
 {
+    /**
+     * Constructeur - Initialise le repository
+     * 
+     * @param ManagerRegistry $registry Registre des gestionnaires d'entités
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, ScheduleWeek::class);

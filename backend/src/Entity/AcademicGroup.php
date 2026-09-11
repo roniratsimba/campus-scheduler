@@ -18,15 +18,8 @@ use Doctrine\ORM\Mapping as ORM;
  * @version 1.0
  */
 #[ORM\Entity(repositoryClass: AcademicGroupRepository::class)]
-#[ORM\Table(
-    name: 'academic_group',
-    uniqueConstraints: [
-        new ORM\UniqueConstraint(
-            name: 'uniq_academic_group',
-            columns: ['level_id', 'program_id', 'group_number']
-        )
-    ]
-)]
+#[ORM\Table(name: 'academic_group')]
+#[ORM\UniqueConstraint(name: 'uniq_academic_group', columns: ['level_id', 'program_id', 'group_number'])]
 class AcademicGroup
 {
     /**
@@ -157,6 +150,20 @@ class AcademicGroup
     public function getCourseSessions(): Collection
     {
         return $this->courseSessions;
+    }
+
+    /**
+     * Retourne un nom lisible du groupe (ex: "L2 GB Groupe 1")
+     * @return string Le nom d'affichage
+     */
+    public function getDisplayName(): string
+    {
+        return sprintf(
+            '%s %s Groupe %s',
+            $this->getLevel()?->getCode() ?? '?',
+            $this->getProgram()?->getCode() ?? '?',
+            $this->getGroupNumber()
+        );
     }
 
     /**

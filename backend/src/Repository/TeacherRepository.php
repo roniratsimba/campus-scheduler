@@ -7,10 +7,21 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
+ * Repository TeacherRepository - Accès aux données des enseignants
+ * 
+ * Fournit l'accès aux données des enseignants.
+ * 
+ * @author Campus Scheduler Team
+ * @version 1.0
  * @extends ServiceEntityRepository<Teacher>
  */
 class TeacherRepository extends ServiceEntityRepository
 {
+    /**
+     * Constructeur - Initialise le repository
+     * 
+     * @param ManagerRegistry $registry Registre des gestionnaires d'entités
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Teacher::class);

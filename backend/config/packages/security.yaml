@@ -18,19 +18,20 @@ security:
         main:
             lazy: true
             provider: app_user_provider
-            json_login:
-                check_path: /api/login
-                username_path: email
-                password_path: password
-            logout:
-                path: /api/logout
+            # Note: L'authentification est gérée par AuthController (POST /api/login).
+            # Dès que lexik/jwt-authentication-bundle sera installé, remplacer par :
+            #   jwt: ~
+            #   logout:
+            #       path: api_token_invalidate
 
     # Note: Only the *first* matching rule is applied
     access_control:
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/register, roles: PUBLIC_ACCESS }
         - { path: ^/api/public, roles: PUBLIC_ACCESS }
-        - { path: ^/api, roles: ROLE_ADMIN }
+        # Temporairement désactivé pour le développement
+        # - { path: ^/api, roles: ROLE_ADMIN }
+        - { path: ^/api, roles: PUBLIC_ACCESS }
 
 when@test:
     security:
